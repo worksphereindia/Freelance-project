@@ -28,16 +28,24 @@ export default function AdminLiveChats() {
   };
 
   useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
     fetchChats();
     socket = io(import.meta.env.VITE_API_URL, { transports: ['websocket'], upgrade: false });
 
     socket.on('receive_support_message', (data) => {
-      // If we are viewing this chat, append message
-      setMessages(prev => {
-        // We can't access selectedChat easily in this closure unless we use a ref or depend on it.
-        // It's better to handle this via another useEffect that depends on selectedChat.
-        return prev;
-      });
+      // Refresh chats list to update unread counts
+      fetchChats();
+      
+      if (data.senderModel === 'User') {
+        if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+          new Notification("New Support Message", {
+            body: data.content,
+            icon: "/favicon.ico"
+          });
+        }
+      }
     });
 
     return () => socket.disconnect();

@@ -21,10 +21,18 @@ const phoneCandidateRegex = /(?:\+?\d[\d\s\-().]{7,}\d)/g;
 
 function hasPhone(text) {
   const candidates = text.match(phoneCandidateRegex) || [];
-  return candidates.some((c) => {
+  const standardPhone = candidates.some((c) => {
     const digits = c.replace(/\D/g, '');
     return digits.length >= 10 && digits.length <= 13;
   });
+  if (standardPhone) return true;
+
+  // Catch fragmented numbers like "1478 once remaining next like that" (10-13 total digits in a short string)
+  const allDigits = text.replace(/\D/g, '');
+  if (allDigits.length >= 10 && allDigits.length <= 13) {
+    return true;
+  }
+  return false;
 }
 
 function hasSpelledOutNumber(text) {
@@ -32,11 +40,13 @@ function hasSpelledOutNumber(text) {
   return words.length >= 7;
 }
 
+const aggressiveEmailRegex = /\b(?:gmail|yahoo|hotmail|outlook)\b/i;
+
 function detectPersonalInfo(text) {
   const types = [];
   if (!text || typeof text !== 'string') return { flagged: false, types };
 
-  if (emailRegex.test(text) || obfuscatedEmailRegex.test(text)) types.push('email');
+  if (emailRegex.test(text) || obfuscatedEmailRegex.test(text) || aggressiveEmailRegex.test(text)) types.push('email');
   if (upiRegex.test(text)) types.push('upi');
   if (hasPhone(text) || hasSpelledOutNumber(text)) types.push('phone');
   if (socialRegex.test(text)) types.push('social');

@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, MessageSquare, CheckSquare, CreditCard, Landmark, Compass, Briefcase, FileText, Sparkles, BrainCircuit, Star, Wallet } from 'lucide-react';
+import { Loader2, MessageSquare, CheckSquare, CreditCard, Landmark, Compass, Briefcase, FileText, Sparkles, BrainCircuit, Star, Wallet, CheckCircle, History, Wrench, DollarSign, X, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import Avatar from '../components/Avatar';
@@ -12,7 +13,7 @@ import TalentDirectory from '../components/TalentDirectory';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   
   const [activeTab, setActiveTab] = useState(user?.role === 'client' ? 'talents' : 'discover'); // 'talents', 'discover' or 'workspace'
   const [profile, setProfile] = useState(null);
@@ -85,6 +86,22 @@ export default function Dashboard() {
   // Freelancer earnings
   const [earnings, setEarnings] = useState({ summary: { escrowed: 0, received: 0, total: 0, count: 0 }, history: [] });
   const [loadingEarnings, setLoadingEarnings] = useState(false);
+
+  // Rehire / Maintenance Modal
+  // Client sends description only — no budget. Freelancer will quote.
+  const [rehireModal, setRehireModal] = useState({ isOpen: false, jobId: null, jobTitle: '', title: '', description: '' });
+  const [isRehiring, setIsRehiring] = useState(false);
+
+  // Freelancer respond-to-rehire modal (quote price or decline)
+  const [rehireRespondModal, setRehireRespondModal] = useState({ isOpen: false, job: null, proposedAmount: '' });
+  const [isRespondingRehire, setIsRespondingRehire] = useState(false);
+
+  // Client accept/reject freelancer quote modal
+  const [rehireQuoteModal, setRehireQuoteModal] = useState({ isOpen: false, job: null });
+  const [isHandlingQuote, setIsHandlingQuote] = useState(false);
+
+  // Subscription
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -164,6 +181,15 @@ export default function Dashboard() {
     fetchMyJobs();
     if (user) {
       setActiveTab(user.role === 'client' ? 'talents' : 'discover');
+      
+      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000');
+      newSocket.on('connect', () => {
+        newSocket.emit('join_updates', { userId: user._id || user.id });
+      });
+      newSocket.on('job_updated', () => {
+        fetchMyJobs();
+      });
+      return () => newSocket.disconnect();
     }
   }, [user]);
 
@@ -175,6 +201,90 @@ export default function Dashboard() {
       executePostJob
     );
   };
+
+  // Step 1: Client submits maintenance/upgrade description
+  const handleRehireSubmit = async (e) => {
+    e.preventDefault();
+    if (!rehireModal.description || rehireModal.description.trim().length < 10) {
+      toast.error('Please describe what you need in at least 10 characters.');
+      return;
+    }
+    setIsRehiring(true);
+    try {
+      const token = user?.token || sessionStorage.getItem('token');
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/jobs/${rehireModal.jobId}/rehire`, {
+        title: rehireModal.title || `Maintenance: ${rehireModal.jobTitle}`,
+        description: rehireModal.description
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Maintenance request sent! The freelancer will quote a price.');
+      setRehireModal({ isOpen: false, jobId: null, jobTitle: '', title: '', description: '' });
+      fetchMyJobs();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send maintenance request.');
+    } finally {
+      setIsRehiring(false);
+    }
+  };
+
+  // Step 2: Freelancer quotes a price or declines the request
+  const handleRehireRespond = async (action) => {
+    setIsRespondingRehire(true);
+    try {
+      const token = user?.token || sessionStorage.getItem('token');
+      const jobId = rehireRespondModal.job?._id;
+      const payload = { action };
+      if (action === 'quote') {
+        const amt = Number(rehireRespondModal.proposedAmount);
+        if (!amt || amt <= 0) { toast.error('Please enter a valid amount.'); setIsRespondingRehire(false); return; }
+        payload.proposedAmount = amt;
+      }
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/jobs/${jobId}/rehire-respond`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(action === 'quote' ? 'Price quoted to client successfully!' : 'Request declined.');
+      setRehireRespondModal({ isOpen: false, job: null, proposedAmount: '' });
+      fetchMyJobs();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to respond.');
+    } finally {
+      setIsRespondingRehire(false);
+    }
+  };
+
+  // Step 3: Client accepts or rejects freelancer's quoted price
+  const handleQuoteDecision = async (accept) => {
+    if (accept) {
+      if (!window.confirm("Are you sure you want to accept this quote and proceed to payment?")) return;
+    } else {
+      if (!window.confirm("Are you sure you want to reject this quote? The freelancer will be notified.")) return;
+    }
+    
+    setIsHandlingQuote(true);
+    try {
+      const token = user?.token || sessionStorage.getItem('token');
+      const jobId = rehireQuoteModal.job?._id;
+      const endpoint = accept ? 'rehire-accept-counter' : 'rehire-reject-counter';
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/jobs/${jobId}/${endpoint}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRehireQuoteModal({ isOpen: false, job: null });
+      fetchMyJobs();
+      if (accept) {
+        toast.success('Quote accepted! Proceeding to payment...');
+        setTimeout(() => navigate(`/payment/${jobId}`), 800);
+      } else {
+        toast.success('Quote rejected. The freelancer will be notified.');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to handle quote.');
+    } finally {
+      setIsHandlingQuote(false);
+    }
+  };
+
+
 
   const executePostJob = async () => {
     setIsPosting(true);
@@ -408,8 +518,8 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="WorkOwn Logo" className="h-10 w-auto" />
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">WorkOwn Portal</h1>
+            <img src="/logo.png" alt="WorkSphere Logo" className="h-10 w-auto" />
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">WorkSphere Portal</h1>
           </div>
           <p className="text-slate-500 mt-1">Collaborate securely using AI matches, encrypted chat, and escrow payments.</p>
         </div>
@@ -425,34 +535,57 @@ export default function Dashboard() {
       </div>
 
       {/* Premium Tab Mechanism */}
-      {/* Premium Tab Mechanism */}
-      <div className="flex bg-slate-100/80 p-1.5 rounded-2xl w-full max-w-2xl border border-slate-200/50 overflow-x-auto">
+      <div className="flex flex-wrap bg-slate-100/80 p-1.5 rounded-2xl w-full border border-slate-200/50 gap-1.5">
         {user?.role === 'client' ? (
           <>
             <button
               onClick={() => setActiveTab('talents')}
-              className={`flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all ${activeTab === 'talents' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'talents' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <Compass size={16} />
-              Find Talents
+              <Compass size={16} className={`transition-transform duration-500 ${activeTab === 'talents' ? 'animate-bounce' : 'group-hover:rotate-45'}`} />
+              Talents
+            </button>
+            <button
+              onClick={() => setActiveTab('progress')}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'progress' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <Loader2 size={16} className={`transition-transform duration-500 ${activeTab === 'progress' ? 'animate-spin text-blue-600' : 'group-hover:animate-spin'}`} />
+              Progress
+              {myJobs.filter(j => ['in-progress', 'delivered', 'disputed'].includes(j.status)).length > 0 && (
+                <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full font-bold">
+                  {myJobs.filter(j => ['in-progress', 'delivered', 'disputed'].includes(j.status)).length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab('workspace')}
-              className={`flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all ${activeTab === 'workspace' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'workspace' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <Briefcase size={16} />
-              My Workspace
-              {myJobs.length > 0 && (
+              <Briefcase size={16} className={`transition-transform duration-500 ${activeTab === 'workspace' ? 'scale-110 text-blue-600' : 'group-hover:-translate-y-1'}`} />
+              Workspace
+              {myJobs.filter(j => ['open', 'pending'].includes(j.status)).length > 0 && (
                 <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full font-bold">
-                  {myJobs.length}
+                  {myJobs.filter(j => ['open', 'pending'].includes(j.status)).length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'completed' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <CheckCircle size={16} className={`transition-transform duration-500 ${activeTab === 'completed' ? 'scale-110 text-blue-600' : 'group-hover:scale-110'}`} />
+              Completed
+              {myJobs.filter(j => ['completed', 'cancelled'].includes(j.status)).length > 0 && (
+                <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full font-bold">
+                  {myJobs.filter(j => ['completed', 'cancelled'].includes(j.status)).length}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab('proposals')}
-              className={`flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all ${activeTab === 'proposals' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'proposals' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <FileText size={16} />
+              <FileText size={16} className={`transition-transform duration-500 ${activeTab === 'proposals' ? 'scale-110 text-blue-600' : 'group-hover:scale-110'}`} />
               Proposals
               {myJobs.filter(j => j.bidCount > 0 && j.status === 'open').length > 0 && (
                 <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full font-bold animate-pulse">
@@ -465,16 +598,16 @@ export default function Dashboard() {
           <>
             <button
               onClick={() => setActiveTab('discover')}
-              className={`flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all ${activeTab === 'discover' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'discover' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <Compass size={16} />
-              Explore Jobs
+              <Compass size={16} className={`transition-transform duration-500 ${activeTab === 'discover' ? 'animate-bounce' : 'group-hover:rotate-45'}`} />
+              Explore
             </button>
             <button
               onClick={() => setActiveTab('invited')}
-              className={`flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all ${activeTab === 'invited' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'invited' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <Sparkles size={16} />
+              <Sparkles size={16} className={`transition-transform duration-500 ${activeTab === 'invited' ? 'animate-spin' : 'group-hover:scale-110'}`} />
               Invited
               {jobs.filter(job => job.invitedFreelancers?.includes(user?.id || user?._id)).length > 0 && (
                 <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-bold animate-pulse">
@@ -483,22 +616,46 @@ export default function Dashboard() {
               )}
             </button>
             <button
-              onClick={() => setActiveTab('workspace')}
-              className={`flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all ${activeTab === 'workspace' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              onClick={() => setActiveTab('progress')}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'progress' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <Briefcase size={16} />
-              My Workspace
-              {myJobs.length > 0 && (
+              <Loader2 size={16} className={`transition-transform duration-500 ${activeTab === 'progress' ? 'animate-spin text-blue-600' : 'group-hover:animate-spin'}`} />
+              Progress
+              {myJobs.filter(j => ['in-progress', 'delivered', 'disputed'].includes(j.status)).length > 0 && (
                 <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full font-bold">
-                  {myJobs.length}
+                  {myJobs.filter(j => ['in-progress', 'delivered', 'disputed'].includes(j.status)).length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('workspace')}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'workspace' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <Briefcase size={16} className={`transition-transform duration-500 ${activeTab === 'workspace' ? 'scale-110 text-blue-600' : 'group-hover:-translate-y-1'}`} />
+              Workspace
+              {myJobs.filter(j => ['open', 'pending'].includes(j.status)).length > 0 && (
+                <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full font-bold">
+                  {myJobs.filter(j => ['open', 'pending'].includes(j.status)).length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'completed' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <CheckCircle size={16} className={`transition-transform duration-500 ${activeTab === 'completed' ? 'scale-110 text-blue-600' : 'group-hover:scale-110'}`} />
+              Completed
+              {myJobs.filter(j => ['completed', 'cancelled'].includes(j.status)).length > 0 && (
+                <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full font-bold">
+                  {myJobs.filter(j => ['completed', 'cancelled'].includes(j.status)).length}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab('earnings')}
-              className={`flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all ${activeTab === 'earnings' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'earnings' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <Wallet size={16} />
+              <Wallet size={16} className={`transition-transform duration-500 ${activeTab === 'earnings' ? 'animate-bounce text-blue-600' : 'group-hover:-translate-y-1'}`} />
               Earnings
             </button>
           </>
@@ -691,11 +848,19 @@ export default function Dashboard() {
         );
         })()
       ) : (
-        // Workspace/Proposals Tab
+        // Workspace/Proposals/Completed Tab
         (() => {
-          const displayedMyJobs = activeTab === 'proposals'
-            ? myJobs.filter(job => job.bidCount > 0 && job.status === 'open')
-            : myJobs;
+          let displayedMyJobs = myJobs;
+          if (activeTab === 'proposals') {
+            displayedMyJobs = myJobs.filter(job => job.bidCount > 0 && job.status === 'open');
+          } else if (activeTab === 'progress') {
+            displayedMyJobs = myJobs.filter(job => ['in-progress', 'delivered', 'disputed'].includes(job.status));
+          } else if (activeTab === 'completed') {
+            displayedMyJobs = myJobs.filter(job => ['completed', 'cancelled'].includes(job.status));
+          } else {
+            // workspace
+            displayedMyJobs = myJobs.filter(job => ['open', 'pending'].includes(job.status));
+          }
             
           return loadingMyJobs ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -742,7 +907,15 @@ export default function Dashboard() {
               }
 
               // Final displayed budget (prefer accepted price if hired)
-              const finalPrice = job.status !== 'open' && job.acceptedPrice ? job.acceptedPrice : job.budget;
+              let finalPriceDisplay = `₹${(job.status !== 'open' && job.acceptedPrice ? job.acceptedPrice : job.budget)?.toLocaleString('en-IN')}`;
+              
+              if (job.isRehire) {
+                if (job.rehireStatus === 'pending_freelancer') {
+                  finalPriceDisplay = 'Awaiting Quote';
+                } else if (job.rehireStatus === 'pending_client') {
+                  finalPriceDisplay = `₹${job.rehireFreelancerAmount?.toLocaleString('en-IN')} (Quoted)`;
+                }
+              }
 
               return (
                 <motion.div
@@ -757,8 +930,8 @@ export default function Dashboard() {
                         {statusText}
                       </span>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400 font-semibold uppercase">Hired Price:</span>
-                        <span className="text-xl font-extrabold text-blue-600">₹{finalPrice?.toLocaleString('en-IN')}</span>
+                        <span className="text-xs text-slate-400 font-semibold uppercase">Price:</span>
+                        <span className="text-xl font-extrabold text-blue-600">{finalPriceDisplay}</span>
                       </div>
                     </div>
 
@@ -851,15 +1024,29 @@ export default function Dashboard() {
 
                       <div className="flex gap-2">
                       {/* Freelancer submits work */}
-                      {user?.role === 'freelancer' && (job.status === 'in-progress' || job.status === 'completed' || job.status === 'delivered') && (
+                      {user?.role === 'freelancer' && job.status === 'in-progress' && (
                         <button
                           onClick={() => handleDeliverClick(job._id)}
                           disabled={isSubmittingWork === job._id}
-                          className="px-4 py-2 bg-gradient-to-r from-slate-500 to-red-500 hover:from-slate-600 hover:to-red-600 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 disabled:opacity-50"
+                          className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 disabled:opacity-50"
                         >
                           {isSubmittingWork === job._id ? <Loader2 size={12} className="animate-spin" /> : <CheckSquare size={14} />}
-                          Submit / Deliver Work
+                          Submit Work
                         </button>
+                      )}
+
+                      {/* Freelancer Pending Client Review */}
+                      {user?.role === 'freelancer' && job.status === 'delivered' && (
+                        <span className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-default">
+                           <Loader2 size={14} className="animate-spin" /> Pending Client Review
+                        </span>
+                      )}
+
+                      {/* Freelancer Completed Project */}
+                      {user?.role === 'freelancer' && job.status === 'completed' && (
+                         <span className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-default">
+                            <Star size={14} className="text-yellow-500 fill-current" /> Project Completed & Paid
+                         </span>
                       )}
 
                       {/* Client funds escrow */}
@@ -874,14 +1061,14 @@ export default function Dashboard() {
                       )}
 
                       {/* Client releases payment */}
-                      {user?.role === 'client' && job.status === 'delivered' && job.paymentStatus === 'escrow_funded' && (
+                      {user?.role === 'client' && job.status === 'delivered' && (
                         <button
                           onClick={() => handleReleaseClick(job._id)}
                           disabled={isReleasing === job._id}
                           className="px-4 py-2 bg-gradient-to-r from-blue-500 to-slate-500 hover:from-blue-600 hover:to-slate-600 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 disabled:opacity-50"
                         >
                           {isReleasing === job._id ? <Loader2 size={12} className="animate-spin" /> : <CheckSquare size={14} />}
-                          Release Payment & Close
+                          Review & Release Funds
                         </button>
                       )}
 
@@ -896,16 +1083,46 @@ export default function Dashboard() {
                         </button>
                       )}
 
-                      {/* Client Leaves Review */}
+                      {/* Client Leaves Review & Rehire */}
                       {user?.role === 'client' && job.status === 'completed' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setReviewForm({ ...reviewForm, jobId: job._id });
+                              setShowReviewModal(true);
+                            }}
+                            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
+                          >
+                            ⭐ Leave a Review
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRehireModal({ isOpen: true, jobId: job._id, jobTitle: job.title, title: '', description: '' });
+                            }}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
+                          >
+                            <Wrench size={14} /> Request Maintenance
+                          </button>
+                        </>
+                      )}
+
+                      {/* Client: pending quote from freelancer — show accept/reject */}
+                      {user?.role === 'client' && job.isRehire && job.rehireStatus === 'pending_client' && (
                         <button
-                          onClick={() => {
-                            setReviewForm({ ...reviewForm, jobId: job._id });
-                            setShowReviewModal(true);
-                          }}
-                          className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
+                          onClick={() => setRehireQuoteModal({ isOpen: true, job })}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5 animate-pulse"
                         >
-                          ⭐ Leave a Review
+                          <DollarSign size={14} /> Freelancer Quoted – Review Price
+                        </button>
+                      )}
+
+                      {/* Freelancer: pending maintenance request — show quote button */}
+                      {user?.role === 'freelancer' && job.isRehire && job.rehireStatus === 'pending_freelancer' && (
+                        <button
+                          onClick={() => setRehireRespondModal({ isOpen: true, job, proposedAmount: '' })}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5 animate-pulse"
+                        >
+                          <DollarSign size={14} /> Quote a Price
                         </button>
                       )}
                     </div>
@@ -1009,10 +1226,11 @@ export default function Dashboard() {
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Project Description</label>
                 <textarea 
                   required
+                  minLength={20}
                   value={jobForm.description}
                   onChange={e => setJobForm({...jobForm, description: e.target.value})}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 h-28 resize-none text-sm" 
-                  placeholder="Describe the deliverables, scope of work, and timelines..."
+                  placeholder="Describe the deliverables, scope of work, and timelines (min 20 characters)..."
                 ></textarea>
               </div>
               
@@ -1103,6 +1321,211 @@ export default function Dashboard() {
         </div>,
         document.body
       )}
+
+
+      {/* ── MAINTENANCE REQUEST MODAL (Client) ── */}
+      {rehireModal.isOpen && createPortal(
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
+          >
+            <div className="p-6 border-b border-purple-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-white">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Wrench size={14} className="text-purple-600" />
+                  </span>
+                  <h2 className="text-lg font-bold text-slate-900">Request Maintenance / Upgrade</h2>
+                </div>
+                <p className="text-xs text-slate-500">Describe what you need. The freelancer will quote a price.</p>
+              </div>
+              <button onClick={() => setRehireModal({ isOpen: false, jobId: null, jobTitle: '', title: '', description: '' })} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-full transition-colors"><X size={16} /></button>
+            </div>
+
+            {/* Step indicator */}
+            <div className="px-6 pt-4 flex items-center gap-2 text-xs font-semibold text-slate-400">
+              <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">1</span>
+              <span className="text-purple-700">You describe the work</span>
+              <ChevronRight size={12} />
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px] font-bold">2</span>
+              <span>Freelancer quotes price</span>
+              <ChevronRight size={12} />
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px] font-bold">3</span>
+              <span>You accept & pay</span>
+            </div>
+
+            <form onSubmit={handleRehireSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">Contract Title (optional)</label>
+                <input
+                  type="text"
+                  value={rehireModal.title}
+                  onChange={e => setRehireModal({ ...rehireModal, title: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm"
+                  placeholder={`e.g. Maintenance – ${rehireModal.jobTitle}`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">What do you need? <span className="text-red-500">*</span></label>
+                <textarea
+                  required
+                  minLength={10}
+                  value={rehireModal.description}
+                  onChange={e => setRehireModal({ ...rehireModal, description: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 h-32 resize-none text-sm"
+                  placeholder="e.g. Fix the payment bug on checkout page, update homepage banner with new content, add dark mode toggle..."
+                />
+                <p className="text-[11px] text-slate-400 mt-1">Be specific — the freelancer will quote based on this description.</p>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-3 border-t border-slate-100">
+                <button type="button" onClick={() => setRehireModal({ isOpen: false, jobId: null, jobTitle: '', title: '', description: '' })} disabled={isRehiring} className="px-5 py-2 text-slate-600 font-semibold hover:bg-slate-50 rounded-lg text-sm transition-colors">Cancel</button>
+                <button type="submit" disabled={isRehiring} className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg text-sm shadow-md transition-colors flex items-center gap-2">
+                  {isRehiring ? <><Loader2 size={14} className="animate-spin" /> Sending...</> : <><Wrench size={14} /> Send Request</>}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── FREELANCER QUOTE MODAL ── */}
+      {rehireRespondModal.isOpen && createPortal(
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
+          >
+            <div className="p-6 border-b border-purple-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-white">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center">
+                    <DollarSign size={14} className="text-purple-600" />
+                  </span>
+                  <h2 className="text-lg font-bold text-slate-900">Maintenance Request</h2>
+                </div>
+                <p className="text-xs text-slate-500">Review the client's request and quote your price.</p>
+              </div>
+              <button onClick={() => setRehireRespondModal({ isOpen: false, job: null, proposedAmount: '' })} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-full transition-colors"><X size={16} /></button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Client's request */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Project</p>
+                <p className="text-sm font-bold text-slate-800">{rehireRespondModal.job?.title}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-3 mb-1.5">What the client needs</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{rehireRespondModal.job?.rehireDescription}</p>
+              </div>
+
+              {/* Quote input */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">Your Quoted Price (₹) <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={rehireRespondModal.proposedAmount}
+                    onChange={e => setRehireRespondModal({ ...rehireRespondModal, proposedAmount: e.target.value })}
+                    className="w-full pl-8 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 text-lg font-bold text-slate-900"
+                    placeholder="e.g. 8000"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">The client will accept or reject your quote. No obligation either way.</p>
+              </div>
+
+              <div className="flex gap-3 pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => handleRehireRespond('reject')}
+                  disabled={isRespondingRehire}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-semibold rounded-xl text-sm hover:bg-slate-50 transition-colors"
+                >
+                  Decline Request
+                </button>
+                <button
+                  onClick={() => handleRehireRespond('quote')}
+                  disabled={isRespondingRehire || !rehireRespondModal.proposedAmount}
+                  className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-sm shadow-md transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isRespondingRehire ? <Loader2 size={14} className="animate-spin" /> : <><DollarSign size={14} /> Send Quote</>}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── CLIENT REVIEW QUOTE MODAL ── */}
+      {rehireQuoteModal.isOpen && rehireQuoteModal.job && createPortal(
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100"
+          >
+            <div className="p-6 border-b border-emerald-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <DollarSign size={14} className="text-emerald-600" />
+                  </span>
+                  <h2 className="text-lg font-bold text-slate-900">Freelancer's Quote</h2>
+                </div>
+                <p className="text-xs text-slate-500">Review and accept or reject this quote.</p>
+              </div>
+              <button onClick={() => setRehireQuoteModal({ isOpen: false, job: null })} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-full transition-colors"><X size={16} /></button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Summary */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Project</p>
+                  <p className="text-sm font-bold text-slate-800">{rehireQuoteModal.job.title}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Your Request</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{rehireQuoteModal.job.rehireDescription}</p>
+                </div>
+              </div>
+
+              {/* Quoted price highlight */}
+              <div className="text-center py-4 bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl border border-emerald-100">
+                <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Quoted Price</p>
+                <p className="text-4xl font-black text-slate-900">₹{rehireQuoteModal.job.rehireFreelancerAmount?.toLocaleString('en-IN')}</p>
+                <p className="text-xs text-slate-500 mt-1">+5% platform fee on payment</p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleQuoteDecision(false)}
+                  disabled={isHandlingQuote}
+                  className="flex-1 py-2.5 border border-red-200 text-red-600 font-semibold rounded-xl text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <X size={14} /> Reject Quote
+                </button>
+                <button
+                  onClick={() => handleQuoteDecision(true)}
+                  disabled={isHandlingQuote}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition-colors flex items-center justify-center gap-2"
+                >
+                  {isHandlingQuote ? <Loader2 size={14} className="animate-spin" /> : <><CheckCircle size={14} /> Accept & Pay</>}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+
 
       {selectedProfile && createPortal(
         <div 

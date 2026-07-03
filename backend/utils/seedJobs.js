@@ -24,7 +24,7 @@ const seedJobs = async () => {
       const hashedPassword = await bcrypt.hash('password123', 10);
       client = await User.create({
         name: 'Harish Kumar',
-        email: 'client@WorkOwn.com',
+        email: 'client@WorkSphere.com',
         password: hashedPassword,
         role: 'client',
         companyName: 'Apex Digital Inc.',

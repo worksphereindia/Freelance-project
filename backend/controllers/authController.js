@@ -2,7 +2,7 @@ const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { encrypt } = require('../utils/crypto');
-const { sendEmail } = require('../utils/email');
+const { sendEmail, sendProfessionalEmail } = require('../utils/email');
 
 const generateToken = (user) => {
   return jwt.sign({ 
@@ -53,10 +53,13 @@ exports.register = async (req, res) => {
 
     if (user) {
       // Send OTP via email
-      await sendEmail(
+      await sendProfessionalEmail(
         user.email,
         "Your Verification Code",
-        `Your OTP is: ${otp}. It expires in 10 minutes.`
+        "Email Verification",
+        `<p>Your OTP for verifying your WorkSphere account is:</p>
+         <h2 style="letter-spacing: 5px; font-size: 32px; color: #2563eb; text-align: center;">${otp}</h2>
+         <p style="text-align: center;">This code expires in 10 minutes.</p>`
       );
 
       res.status(201).json({

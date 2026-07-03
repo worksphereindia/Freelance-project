@@ -6,7 +6,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAYW1E2yhAwRnYE2r7HcKGGcc3DFPs4cPg",
   authDomain: "freelace-market.firebaseapp.com",
   projectId: "freelace-market",
-  storageBucket: "freelace-market.firebasestorage.app",
+  storageBucket: "freelace-market.appspot.com",
   messagingSenderId: "216559615054",
   appId: "1:216559615054:web:e0ee15b4521359fc26571f",
   measurementId: "G-SPKTPNM568"

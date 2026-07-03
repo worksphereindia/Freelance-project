@@ -20,10 +20,10 @@ export default function Loading() {
             mask: 'radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px))'
           }}
         />
-        {/* actual WorkOwn logo, gently floating */}
+        {/* actual WorkSphere logo, gently floating */}
         <motion.img
           src="/logo.png"
-          alt="WorkOwn"
+          alt="WorkSphere"
           animate={{ y: [0, -6, 0] }}
           transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
           className="w-24 h-24 rounded-2xl object-cover shadow-lg"
@@ -32,7 +32,7 @@ export default function Loading() {
 
       {/* Wordmark — matches the site nav */}
       <div className="text-3xl font-extrabold tracking-tight text-blue-600">
-        WorkOwn
+        WorkSphere
       </div>
 
       {/* Tagline */}

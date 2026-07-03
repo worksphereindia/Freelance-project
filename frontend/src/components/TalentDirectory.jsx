@@ -8,7 +8,7 @@ import {
   Search, 
   CheckCircle, 
   Award, 
-  DollarSign, 
+  IndianRupee, 
   X, 
   Globe, 
   User, 

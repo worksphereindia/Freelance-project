@@ -6,16 +6,25 @@ const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'sev
 
 const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 const obfuscatedEmailRegex = /\b[a-z0-9._%+-]+\s*(?:@|\(?\s*at\s*\)?|\[\s*at\s*\])\s*[a-z0-9.-]+\s*(?:\.|\(?\s*dot\s*\)?|\[\s*dot\s*\])\s*(?:com|in|org|net|co|io|edu|gov|me)\b/i;
+const aggressiveEmailRegex = /\b(?:gmail|yahoo|hotmail|outlook)\b/i;
 const upiRegex = /\b[a-z0-9.\-_]{2,}@(?:ybl|okaxis|oksbi|okicici|okhdfcbank|paytm|apl|upi|ibl|axl|hdfcbank|sbi|icici|axis|kotak|fbl|pnb)\b/i;
 const socialRegex = /\b(?:whats\s?app|wa\.me|t\.me|tele\s?gram|\btg\b|insta(?:gram)?|snap\s?chat|linktr\.ee|calendly|face\s?book|\bfb\b|\bdm\b|\bvpa\b)\b/i;
 const phoneCandidateRegex = /(?:\+?\d[\d\s\-().]{7,}\d)/g;
 
 function hasPhone(text) {
   const candidates = text.match(phoneCandidateRegex) || [];
-  return candidates.some((c) => {
+  const standardPhone = candidates.some((c) => {
     const digits = c.replace(/\D/g, '');
     return digits.length >= 10 && digits.length <= 13;
   });
+  if (standardPhone) return true;
+
+  // Catch fragmented numbers like "1478 once remaining next like that" (10-13 total digits in a short string)
+  const allDigits = text.replace(/\D/g, '');
+  if (allDigits.length >= 10 && allDigits.length <= 13) {
+    return true;
+  }
+  return false;
 }
 
 function hasSpelledOutNumber(text) {
@@ -27,7 +36,7 @@ export function detectPersonalInfo(text) {
   const types = [];
   if (!text || typeof text !== 'string') return { flagged: false, types };
 
-  if (emailRegex.test(text) || obfuscatedEmailRegex.test(text)) types.push('email');
+  if (emailRegex.test(text) || obfuscatedEmailRegex.test(text) || aggressiveEmailRegex.test(text)) types.push('email');
   if (upiRegex.test(text)) types.push('upi');
   if (hasPhone(text) || hasSpelledOutNumber(text)) types.push('phone');
   if (socialRegex.test(text)) types.push('social');

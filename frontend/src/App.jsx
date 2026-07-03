@@ -1,13 +1,14 @@
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { Suspense, lazy, useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, LogOut, Settings, ShieldCheck, ChevronDown, Menu, X, Home as HomeIcon, Info, Briefcase, MessageSquare } from 'lucide-react';
+import { User, LogOut, Settings, ShieldCheck, ChevronDown, Menu, X, Home as HomeIcon, Info, Briefcase, MessageSquare, Crown, Star } from 'lucide-react';
 import toast, { Toaster, ToastBar } from 'react-hot-toast';
 import Loading from './components/Loading';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Avatar from './components/Avatar';
 import AuthModal from './components/AuthModal';
+import SubscriptionModal from './components/SubscriptionModal';
 import Footer from './components/Footer';
 import ContactUs from './components/ContactUs';
 import Breadcrumbs from './components/Breadcrumbs';
@@ -27,6 +28,7 @@ function AppNav() {
   const { user, logout, openAuth } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,8 +60,8 @@ function AppNav() {
           <div className="flex items-center gap-8">
             <Link to="/">
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2 cursor-pointer">
-                <img src="/logo.png" alt="WorkOwn Logo" className="h-8 w-auto" />
-                <span className="text-2xl font-extrabold text-blue-600 tracking-tight">WorkOwn</span>
+                <img src="/logo.png" alt="WorkSphere Logo" className="h-8 w-auto" />
+                <span className="text-2xl font-extrabold text-blue-600 tracking-tight">WorkSphere</span>
               </motion.div>
             </Link>
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
@@ -79,9 +81,22 @@ function AppNav() {
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors relative group"
+                  title={user.role === 'freelancer' ? `Plan: ${user.subscriptionPlan === 'advanced' ? 'PRO' : user.subscriptionPlan === 'basic' ? 'BASIC' : 'FREE'}` : ''}
                 >
-                  <Avatar name={user.name} src={user.profilePicture} size={32} />
+                  <div className="relative">
+                    <Avatar name={user.name} src={user.profilePicture} size={32} />
+                    {user.role === 'freelancer' && user.subscriptionPlan === 'advanced' && (
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full p-0.5 shadow-sm border border-white">
+                        <Crown size={10} className="text-white fill-white" />
+                      </div>
+                    )}
+                    {user.role === 'freelancer' && user.subscriptionPlan === 'basic' && (
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-slate-400 to-slate-500 rounded-full p-0.5 shadow-sm border border-white">
+                        <Star size={10} className="text-white fill-white" />
+                      </div>
+                    )}
+                  </div>
                   <ChevronDown size={16} className="text-slate-400" />
                 </button>
 
@@ -95,10 +110,40 @@ function AppNav() {
                     >
                       <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
                         <p className="text-sm font-semibold text-slate-900 truncate">{user.name}</p>
-                        <p className="text-xs text-slate-500 capitalize">{user.role}</p>
+                        <div className="flex flex-col gap-1 mt-1">
+                          <p className="text-xs text-slate-500 capitalize">{user.role}</p>
+                          {user.role === 'freelancer' && (
+                            <div className="mt-1">
+                              <span className={`inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded items-center gap-1 mb-1 ${
+                                user.subscriptionPlan === 'advanced' ? 'bg-amber-100 text-amber-700' : 
+                                user.subscriptionPlan === 'basic' ? 'bg-slate-200 text-slate-700' : 'bg-red-50 text-red-600'
+                              }`}>
+                                {user.subscriptionPlan === 'advanced' && <Crown size={10} className="fill-amber-700" />}
+                                {user.subscriptionPlan === 'basic' && <Star size={10} className="fill-slate-700" />}
+                                {user.subscriptionPlan === 'advanced' ? 'PRO PLAN' : user.subscriptionPlan === 'basic' ? 'BASIC PLAN' : 'FREE'}
+                              </span>
+                              {user.subscriptionPlan && user.subscriptionPlan !== 'none' && user.subscriptionExpiry && (
+                                <div className="text-[10px] text-slate-500 flex flex-col gap-0.5">
+                                  <span>Expires: {new Date(user.subscriptionExpiry).toLocaleDateString()}</span>
+                                  <span className="font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded w-fit">
+                                    {Math.max(0, Math.ceil((new Date(user.subscriptionExpiry) - new Date()) / (1000 * 60 * 60 * 24)))} days left
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="p-2 space-y-1">
+                        {user.role === 'freelancer' && (
+                          <button 
+                            onClick={() => { setDropdownOpen(false); setSubscriptionModalOpen(true); }} 
+                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 rounded-lg transition-colors font-medium"
+                          >
+                            <Crown size={16} /> Manage Plan
+                          </button>
+                        )}
                         <Link to="/edit-profile" onClick={() => setDropdownOpen(false)} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
                           <Settings size={16} /> Edit Profile
                         </Link>
@@ -159,8 +204,8 @@ function AppNav() {
             {/* Header inside overlay */}
             <div className="flex justify-between items-center px-6 h-20 border-b border-slate-50 shrink-0">
               <div className="flex items-center gap-2">
-                <img src="/logo.png" alt="WorkOwn Logo" className="h-8 w-auto" />
-                <span className="text-xl font-extrabold text-blue-600 tracking-tight">WorkOwn</span>
+                <img src="/logo.png" alt="WorkSphere Logo" className="h-8 w-auto" />
+                <span className="text-xl font-extrabold text-blue-600 tracking-tight">WorkSphere</span>
               </div>
               <button 
                 onClick={() => setMobileMenuOpen(false)}
@@ -175,10 +220,32 @@ function AppNav() {
               
               {user && (
                 <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm shrink-0">
-                  <Avatar name={user.name} src={user.profilePicture} size={48} />
+                  <div className="relative shrink-0">
+                    <Avatar name={user.name} src={user.profilePicture} size={48} />
+                    {user.role === 'freelancer' && user.subscriptionPlan === 'advanced' && (
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full p-1 shadow-sm border-2 border-white">
+                        <Crown size={12} className="text-white fill-white" />
+                      </div>
+                    )}
+                    {user.role === 'freelancer' && user.subscriptionPlan === 'basic' && (
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-slate-400 to-slate-500 rounded-full p-1 shadow-sm border-2 border-white">
+                        <Star size={12} className="text-white fill-white" />
+                      </div>
+                    )}
+                  </div>
                   <div className="overflow-hidden">
                     <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
-                    <p className="text-xs text-slate-500 capitalize truncate">{user.role}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-slate-500 capitalize truncate">{user.role}</p>
+                      {user.role === 'freelancer' && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                          user.subscriptionPlan === 'advanced' ? 'bg-amber-100 text-amber-700' : 
+                          user.subscriptionPlan === 'basic' ? 'bg-slate-200 text-slate-700' : 'bg-red-50 text-red-600'
+                        }`}>
+                          {user.subscriptionPlan === 'advanced' ? 'PRO' : user.subscriptionPlan === 'basic' ? 'BASIC' : 'FREE'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -233,6 +300,7 @@ function AppNav() {
           </motion.div>
         )}
       </AnimatePresence>
+      <SubscriptionModal isOpen={subscriptionModalOpen} onClose={() => setSubscriptionModalOpen(false)} />
     </>
   );
 }

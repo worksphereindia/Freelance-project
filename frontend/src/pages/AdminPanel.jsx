@@ -11,7 +11,7 @@ import {
   XCircle, 
   Search, 
   ShieldCheck, 
-  DollarSign, 
+  IndianRupee, 
   TrendingUp, 
   Activity,
   UserCheck,
@@ -453,7 +453,7 @@ export default function AdminPanel() {
               W
             </div>
             <div>
-              <span className="font-extrabold text-slate-800 text-lg tracking-tight">WorkOwn</span>
+              <span className="font-extrabold text-slate-800 text-lg tracking-tight">WorkSphere</span>
               <span className="block text-[10px] text-blue-600 font-bold uppercase tracking-wider">Admin Engine</span>
             </div>
           </div>
@@ -622,7 +622,7 @@ export default function AdminPanel() {
                       </p>
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <DollarSign size={22} />
+                      <IndianRupee size={22} />
                     </div>
                   </div>
 
@@ -2086,7 +2086,7 @@ export default function AdminPanel() {
                 <div>
                   <h4 className="text-xl font-extrabold text-slate-900 mb-2">{reviewJobModal.job.title}</h4>
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-black">
-                    <DollarSign size={16} /> Target Budget: ₹{reviewJobModal.job.budget?.toLocaleString('en-IN')}
+                    <IndianRupee size={16} /> Target Budget: ₹{reviewJobModal.job.budget?.toLocaleString('en-IN')}
                   </div>
                 </div>
 

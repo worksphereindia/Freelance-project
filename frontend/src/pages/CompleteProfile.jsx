@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,13 @@ export default function CompleteProfile() {
   const navigate = useNavigate();
   const { user, login } = useAuth();
   const [fetchingLocation, setFetchingLocation] = useState(false);
+
+  // Pre-fill phone number if available
+  useEffect(() => {
+    if (user?.phoneNumber && !formData.phoneNumber) {
+      setFormData(prev => ({ ...prev, phoneNumber: user.phoneNumber }));
+    }
+  }, [user]);
 
   const fetchLocation = () => {
     if (!navigator.geolocation) {

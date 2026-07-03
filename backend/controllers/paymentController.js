@@ -2,7 +2,16 @@ const Razorpay = require('razorpay');
 const Payment = require('../models/Payment');
 const Job = require('../models/Job');
 const User = require('../models/User');
-const { sendEmail } = require('../utils/email');
+const { sendEmail, sendProfessionalEmail } = require('../utils/email');
+
+const emitJobUpdate = (req, userIds) => {
+  const io = req.app.get('io');
+  if (io) {
+    userIds.forEach(id => {
+      if (id) io.to(`updates_${id.toString()}`).emit('job_updated');
+    });
+  }
+};
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -35,7 +44,7 @@ const generateReceiptHtml = ({
         
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 16px;">
-          <h1 style="font-size: 20px; font-weight: 900; margin: 0; text-transform: uppercase; color: #0f172a; letter-spacing: -1px;">WorkOwn</h1>
+          <h1 style="font-size: 20px; font-weight: 900; margin: 0; text-transform: uppercase; color: #0f172a; letter-spacing: -1px;">WorkSphere</h1>
           <p style="font-size: 10px; color: #64748b; font-weight: bold; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 1px;">Secure Escrow Receipt</p>
           <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">Mangalore, MAQ - India</p>
         </div>
@@ -120,7 +129,7 @@ const generateReceiptHtml = ({
 
         <!-- Footer Note -->
         <p style="font-size: 8px; color: #94a3b8; text-align: center; line-height: 1.3; margin: 8px 0 0 0;">
-          Thank you for trusting WorkOwn Escrow.<br />Retain this digital thermal receipt for billing verification purposes.
+          Thank you for trusting WorkSphere Escrow.<br />Retain this digital thermal receipt for billing verification purposes.
         </p>
 
       </div>
@@ -147,19 +156,19 @@ const sendReceiptEmail = async (client, payment, job) => {
       jobId: payment.job
     });
 
-    await sendEmail(
+    await sendProfessionalEmail(
       client.email,
-      "Payment Receipt - WorkOwn Escrow",
-      `Your payment of INR ${payment.amount} for job "${job.title}" has been securely funded to escrow.`,
+      "Payment Receipt - WorkSphere Escrow",
+      "Payment Successful! 🎉",
       htmlContent
     );
 
     if (freelancer && freelancer.email) {
-      await sendEmail(
+      await sendProfessionalEmail(
         freelancer.email,
         "Escrow Funded - Start Working!",
-        `Great news! The client has securely deposited INR ${payment.freelancerAmount || (payment.amount - payment.platformFee)} into escrow for the job "${job.title}". You can now safely begin your work!`,
-        `<div style="font-family: sans-serif; padding: 20px;"><h2>Escrow Funded</h2><p>Great news! The client has securely deposited your fee into the WorkOwn Escrow for the job <strong>"${job.title}"</strong>.</p><p>You can now safely begin your work knowing your payment is secured.</p></div>`
+        "Escrow Funded",
+        `<p>Great news! The client has securely deposited your fee into the WorkSphere Escrow for the job <strong>"${job.title}"</strong>.</p><p>You can now safely begin your work knowing your payment is secured.</p>`
       );
     }
   } catch (error) {
@@ -175,27 +184,21 @@ const sendCompletionEmails = async (payment, job) => {
     const amount = payment.freelancerAmount || (payment.amount - payment.platformFee);
 
     if (freelancer?.email) {
-      await sendEmail(
+      await sendProfessionalEmail(
         freelancer.email,
         `Payment released — "${job.title}"`,
-        `Great news! ${client?.name || 'The client'} has released INR ${amount} from escrow for "${job.title}". The project is now marked complete.`,
-        `<div style="font-family:sans-serif;padding:20px">
-           <h2>Payment Released ✓</h2>
-           <p><strong>${client?.name || 'The client'}</strong> has released <strong>₹${amount.toLocaleString('en-IN')}</strong> from escrow for <strong>"${job.title}"</strong>.</p>
-           <p>The project is now marked as complete. Thank you for delivering great work on WorkOwn!</p>
-         </div>`
+        "Payment Released ✓",
+        `<p><strong>${client?.name || 'The client'}</strong> has released <strong>₹${amount.toLocaleString('en-IN')}</strong> from escrow for <strong>"${job.title}"</strong>.</p>
+         <p>The project is now marked as complete. Thank you for delivering great work on WorkSphere!</p>`
       );
     }
     if (client?.email) {
-      await sendEmail(
+      await sendProfessionalEmail(
         client.email,
         `Project completed — "${job.title}"`,
-        `You've released escrow to ${freelancer?.name || 'your freelancer'} for "${job.title}". The project is now complete.`,
-        `<div style="font-family:sans-serif;padding:20px">
-           <h2>Project Completed ✓</h2>
-           <p>You've released the escrow to <strong>${freelancer?.name || 'your freelancer'}</strong> for <strong>"${job.title}"</strong>.</p>
-           <p>We hope it was a great collaboration. You can hire them again anytime on WorkOwn.</p>
-         </div>`
+        "Project Completed ✓",
+        `<p>You've released the escrow to <strong>${freelancer?.name || 'your freelancer'}</strong> for <strong>"${job.title}"</strong>.</p>
+         <p>We hope it was a great collaboration. You can hire them again anytime on WorkSphere.</p>`
       );
     }
   } catch (err) {
@@ -305,6 +308,9 @@ exports.verifyPayment = async (req, res) => {
         await sendReceiptEmail(client, payment, job);
       }
 
+      // Emit real-time update
+      emitJobUpdate(req, [payment.client, payment.freelancer]);
+
       res.json({ message: 'Payment verified successfully and funded to escrow', payment });
     } else {
       res.status(400).json({ message: 'Invalid payment details' });
@@ -342,6 +348,9 @@ exports.releasePayment = async (req, res) => {
     await job.save();
 
     await sendCompletionEmails(payment, job);
+
+    // Emit real-time update
+    emitJobUpdate(req, [payment.client, payment.freelancer]);
 
     res.json({ message: 'Payment released to freelancer successfully', payment });
   } catch (error) {
@@ -410,6 +419,9 @@ exports.releasePaymentByJobId = async (req, res) => {
     await job.save();
 
     await sendCompletionEmails(payment, job);
+
+    // Emit real-time update
+    emitJobUpdate(req, [payment.client, payment.freelancer]);
 
     res.json({ message: 'Payment released to freelancer successfully', payment });
   } catch (error) {

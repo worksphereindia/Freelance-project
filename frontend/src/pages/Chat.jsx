@@ -132,11 +132,11 @@ export default function Chat() {
         }
       }
 
-      // Add the WorkOwn Admin Support Chat
+      // Add the WorkSphere Admin Support Chat
       conversations.unshift({
         _id: 'support',
         isSupport: true,
-        title: 'WorkOwn Admin Support',
+        title: 'WorkSphere Admin Support',
         subtitle: 'Chat with platform administrators',
         roomName: `support_${user.id || user._id}`,
         job: null,
@@ -182,6 +182,10 @@ export default function Chat() {
   };
 
   useEffect(() => {
+    // Request Notification permission
+    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
     fetchMyJobs();
   }, [user, location.state]);
 
@@ -253,14 +257,23 @@ export default function Chat() {
       setMessages((prev) => [...prev, data]);
       scrollToBottom();
 
-      // If we are actively viewing this chat and receive a message, mark it read
       const isMe = data.sender === (user.id || user._id);
+      
+      // If we are actively viewing this chat and receive a message, mark it read
       if (!isMe) {
         socket.emit('mark_read', {
           roomName: selectedJob.roomName,
           userId: user.id || user._id,
           jobId: selectedJob.job._id
         });
+        
+        // Show browser notification if document is hidden
+        if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+          new Notification("New Message on WorkSphere", {
+            body: data.content,
+            icon: "/favicon.ico"
+          });
+        }
       }
     });
 
@@ -275,6 +288,13 @@ export default function Chat() {
           userId: user.id || user._id,
           isFromAdmin: false
         });
+
+        if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+          new Notification("New Support Message", {
+            body: data.content,
+            icon: "/favicon.ico"
+          });
+        }
       }
     });
 
@@ -321,7 +341,10 @@ export default function Chat() {
 
   const scrollToBottom = () => {
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      if (messagesEndRef.current) {
+        const container = messagesEndRef.current.parentElement;
+        container.scrollTop = container.scrollHeight;
+      }
     }, 100);
   };
 
@@ -362,7 +385,7 @@ export default function Chat() {
 
     // Prevent sharing personal contact / payment details (server also blocks & logs)
     if (containsPersonalInfo(message)) {
-      toast.error('Sharing contact or payment details (phone, email, UPI, social handles) is not allowed on WorkOwn.', { duration: 5000 });
+      toast.error('Sharing contact or payment details (phone, email, UPI, social handles) is not allowed on WorkSphere.', { duration: 5000 });
       return;
     }
 
@@ -524,24 +547,26 @@ export default function Chat() {
     setUploadingAsset(true);
     try {
       const token = user?.token || sessionStorage.getItem('token');
-      const safeName = file.name.replace(/[^\w.-]/g, '_');
-      const path = `assets/${selectedJob.job._id}/${Date.now()}_${safeName}`;
-      const fileRef = storageRef(storage, path);
-
-      await uploadBytes(fileRef, file);
-      const url = await getDownloadURL(fileRef);
+      
+      const formData = new FormData();
+      formData.append('asset', file);
 
       const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/jobs/${selectedJob.job._id}/assets`,
-        { name: file.name, url, type: file.type, size: file.size, storagePath: path },
-        { headers: { Authorization: `Bearer ${token}` } }
+        formData,
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          } 
+        }
       );
 
       setAssets((prev) => [res.data.asset, ...prev]);
       toast.success('Asset shared with freelancer');
     } catch (err) {
       console.error('Asset upload failed', err);
-      toast.error(err.response?.data?.message || 'Failed to upload asset');
+      toast.error(err.response?.data?.message || err.message || 'Failed to upload asset');
     } finally {
       setUploadingAsset(false);
     }
@@ -642,18 +667,60 @@ export default function Chat() {
           {jobs.length === 0 ? (
             <div className="p-6 text-sm text-slate-500 text-center">No active jobs found to chat about.</div>
           ) : (
-            jobs.map((job) => (
-              <div 
-                key={job._id}
-                onClick={() => setSelectedJob(job)}
-                className={`p-4 border-b border-slate-100 cursor-pointer transition-colors ${selectedJob?._id === job._id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'hover:bg-slate-100'}`}
-              >
-                <h3 className="font-semibold text-slate-800 truncate">{job.title}</h3>
-                <p className="text-xs text-slate-500 mt-1 truncate">
-                  {job.subtitle}
-                </p>
-              </div>
-            ))
+            <>
+              {/* Support Chats */}
+              {jobs.filter(j => j.isSupport).length > 0 && (
+                <div className="mb-2">
+                  {jobs.filter(j => j.isSupport).map(job => (
+                    <div 
+                      key={job._id}
+                      onClick={() => setSelectedJob(job)}
+                      className={`p-4 border-b border-slate-100 cursor-pointer transition-colors ${selectedJob?._id === job._id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'hover:bg-slate-100'}`}
+                    >
+                      <h3 className="font-semibold text-slate-800 truncate">{job.title}</h3>
+                      <p className="text-xs text-slate-500 mt-1 truncate">{job.subtitle}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Active Projects (Accepted/Hired) */}
+              {jobs.filter(j => !j.isSupport && j.status !== 'open').length > 0 && (
+                <div className="mb-2">
+                  <h4 className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-100/50">Active Projects</h4>
+                  {jobs.filter(j => !j.isSupport && j.status !== 'open').map(job => (
+                    <div 
+                      key={job._id}
+                      onClick={() => setSelectedJob(job)}
+                      className={`p-4 border-b border-slate-100 cursor-pointer transition-colors ${selectedJob?._id === job._id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'hover:bg-slate-100'}`}
+                    >
+                      <h3 className="font-semibold text-slate-800 truncate">{job.title}</h3>
+                      <p className="text-xs text-emerald-600 font-semibold mt-1 truncate flex items-center gap-1">
+                        ⭐ {job.status.toUpperCase()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1 truncate">{job.subtitle}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Open Projects / Proposals */}
+              {jobs.filter(j => !j.isSupport && j.status === 'open').length > 0 && (
+                <div className="mb-2">
+                  <h4 className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-100/50">Open Proposals</h4>
+                  {jobs.filter(j => !j.isSupport && j.status === 'open').map(job => (
+                    <div 
+                      key={job._id}
+                      onClick={() => setSelectedJob(job)}
+                      className={`p-4 border-b border-slate-100 cursor-pointer transition-colors opacity-80 hover:opacity-100 ${selectedJob?._id === job._id ? 'bg-blue-50 border-l-4 border-l-blue-600 opacity-100' : 'hover:bg-slate-100'}`}
+                    >
+                      <h3 className="font-semibold text-slate-800 truncate">{job.title}</h3>
+                      <p className="text-xs text-slate-500 mt-1 truncate">{job.subtitle}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -976,18 +1043,18 @@ export default function Chat() {
               }}
               placeholder="Type a message..."
               className="flex-1 px-5 py-3 bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
-              disabled={user.role === 'client' && selectedJob.status === 'open' && !selectedJob.freelancer}
+              disabled={!selectedJob.isSupport && user.role === 'client' && selectedJob.status === 'open' && !selectedJob.freelancer}
             />
             <button 
               type="submit" 
-              disabled={user.role === 'client' && selectedJob.status === 'open' && !selectedJob.freelancer}
+              disabled={!selectedJob.isSupport && user.role === 'client' && selectedJob.status === 'open' && !selectedJob.freelancer}
               className="bg-blue-600 text-white px-8 py-3 rounded-full font-medium hover:bg-blue-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Send
             </button>
           </form>
           
-          {user.role === 'client' && selectedJob.status === 'open' && !selectedJob.freelancer && (
+          {!selectedJob.isSupport && user.role === 'client' && selectedJob.status === 'open' && !selectedJob.freelancer && (
             <div className="absolute bottom-[72px] left-0 w-full bg-slate-50 text-slate-600 text-xs p-2 text-center border-t border-slate-100">
               No freelancer has bid on this job yet. Conversations will start once bids are received.
             </div>

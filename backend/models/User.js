@@ -41,8 +41,11 @@ const userSchema = new mongoose.Schema(
     // Freelancer specific completeness
     isProfileComplete: { type: Boolean, default: false },
     isFreelancerApproved: { type: Boolean, default: false },
-    phoneNumber: { type: String },
-    portfolioUrl: { type: String }
+    
+    // Subscriptions
+    subscriptionPlan: { type: String, enum: ['none', 'basic', 'advanced'], default: 'none' },
+    subscriptionExpiry: { type: Date },
+    bidsThisMonth: { type: Number, default: 0 }
   },
   { timestamps: true }
 );

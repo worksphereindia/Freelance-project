@@ -244,7 +244,7 @@ export default function Home() {
             </h1>
             
             <p className="text-lg md:text-xl text-slate-600 max-w-xl font-medium leading-relaxed">
-              WorkOwn connects top-tier designers, creators, and marketers. Secured by automated digital contracts and real-time bank escrow vaults.
+              WorkSphere connects top-tier designers, creators, and marketers. Secured by automated digital contracts and real-time bank escrow vaults.
             </p>
             
             <div className="flex flex-wrap gap-4 pt-4">

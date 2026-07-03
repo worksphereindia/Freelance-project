@@ -19,7 +19,7 @@ export default function AboutUs() {
           transition={{ delay: 0.2 }}
           className="text-lg text-slate-600 mb-12"
         >
-          WorkOwn was built to solve the trust deficit in the freelance market. By combining AI-driven matching algorithms with Razorpay escrow payments and military-grade chat encryption, we ensure that both clients and talent can collaborate with complete peace of mind.
+          WorkSphere was built to solve the trust deficit in the freelance market. By combining AI-driven matching algorithms with Razorpay escrow payments and military-grade chat encryption, we ensure that both clients and talent can collaborate with complete peace of mind.
         </motion.p>
 
         <motion.div
@@ -28,7 +28,7 @@ export default function AboutUs() {
           transition={{ delay: 0.3 }}
           className="w-full max-w-3xl mx-auto mb-16 relative group mix-blend-multiply"
         >
-          <img src={aboutUsIllustration} alt="About WorkOwn" loading="lazy" decoding="async" className="w-full h-auto object-contain transform transition-transform duration-700 group-hover:scale-105" />
+          <img src={aboutUsIllustration} alt="About WorkSphere" loading="lazy" decoding="async" className="w-full h-auto object-contain transform transition-transform duration-700 group-hover:scale-105" />
         </motion.div>
 
         <div className="grid md:grid-cols-2 gap-8 text-left mt-16">
@@ -52,7 +52,7 @@ export default function AboutUs() {
           >
             <h3 className="text-2xl font-bold text-slate-900 mb-4">Trust & Safety</h3>
             <p className="text-slate-600 leading-relaxed">
-              Every job on WorkOwn is backed by Escrow. We hold the funds until the milestones are met. Our chat communications are actively monitored by algorithms to prevent the sharing of personal contact info to keep the platform secure.
+              Every job on WorkSphere is backed by Escrow. We hold the funds until the milestones are met. Our chat communications are actively monitored by algorithms to prevent the sharing of personal contact info to keep the platform secure.
             </p>
           </motion.div>
         </div>

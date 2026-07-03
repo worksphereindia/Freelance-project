@@ -300,7 +300,7 @@ exports.replyContactMessage = async (req, res) => {
     await sendEmail(
       message.email,
       `Re: ${message.subject}`,
-      `Hello ${message.name || 'User'},\n\nRegarding your inquiry: "${message.subject}"\n\nAdmin Reply:\n${replyText}\n\nBest Regards,\nWorkOwn Team`
+      `Hello ${message.name || 'User'},\n\nRegarding your inquiry: "${message.subject}"\n\nAdmin Reply:\n${replyText}\n\nBest Regards,\nWorkSphere Team`
     );
 
     message.status = 'resolved';

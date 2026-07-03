@@ -3,8 +3,17 @@ const Bid = require('../models/Bid');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const { decrypt } = require('../utils/crypto');
-const { sendEmail } = require('../utils/email');
+const { sendEmail, sendProfessionalEmail } = require('../utils/email');
 const axios = require('axios');
+
+const emitJobUpdate = (req, userIds) => {
+  const io = req.app.get('io');
+  if (io) {
+    userIds.forEach(id => {
+      if (id) io.to(`updates_${id.toString()}`).emit('job_updated');
+    });
+  }
+};
 
 exports.createJob = async (req, res) => {
   try {
@@ -29,13 +38,15 @@ exports.getJobs = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const jobs = await Job.find({ status: 'open', isApproved: true })
+    const query = { status: 'open', isApproved: true, isRehire: { $ne: true } };
+
+    const jobs = await Job.find(query)
       .populate('client', 'name companyName profilePicture')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Job.countDocuments({ status: 'open', isApproved: true });
+    const total = await Job.countDocuments(query);
 
     res.json({
       jobs,
@@ -61,13 +72,24 @@ exports.getMyJobs = async (req, res) => {
       
       res.json(jobsWithBids);
     } else {
+      // Freelancer: Get jobs they bid on, OR jobs where they are the rehireTargetFreelancer, OR selectedFreelancer
       const bids = await Bid.find({ freelancer: req.user.id }).populate({
         path: 'job',
         populate: { path: 'client', select: 'name companyName' }
       });
-      const jobs = bids.map(bid => bid.job).filter(job => job != null);
-      const uniqueJobs = Array.from(new Set(jobs.map(j => j._id.toString())))
-        .map(id => jobs.find(j => j._id.toString() === id))
+      const biddedJobs = bids.map(bid => bid.job).filter(job => job != null);
+
+      const assignedJobs = await Job.find({
+        $or: [
+          { selectedFreelancer: req.user.id },
+          { rehireTargetFreelancer: req.user.id }
+        ]
+      }).populate('client', 'name companyName').lean();
+
+      const allJobs = [...biddedJobs, ...assignedJobs];
+      
+      const uniqueJobs = Array.from(new Set(allJobs.map(j => j._id.toString())))
+        .map(id => allJobs.find(j => j._id.toString() === id))
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       res.json(uniqueJobs);
     }
@@ -168,6 +190,21 @@ exports.placeBid = async (req, res) => {
       return res.status(403).json({ message: 'Your account is pending admin approval. You cannot place bids yet.' });
     }
 
+    // Check Subscription Limits
+    if (!userProfile.subscriptionPlan || userProfile.subscriptionPlan === 'none') {
+      return res.status(403).json({ message: 'You need an active subscription plan to place bids.' });
+    }
+    
+    if (userProfile.subscriptionExpiry && new Date() > new Date(userProfile.subscriptionExpiry)) {
+      userProfile.subscriptionPlan = 'none';
+      await userProfile.save();
+      return res.status(403).json({ message: 'Your subscription has expired. Please renew your plan to continue bidding.' });
+    }
+
+    if (userProfile.subscriptionPlan === 'basic' && userProfile.bidsThisMonth >= 3) {
+      return res.status(403).json({ message: 'You have reached your limit of 3 bids for the Basic Plan. Please upgrade to Advanced for unlimited bids.' });
+    }
+
     // Check if job exists and is open
     const job = await Job.findById(jobId);
     if (!job || job.status !== 'open') {
@@ -188,6 +225,9 @@ exports.placeBid = async (req, res) => {
         }
       ]
     });
+
+    userProfile.bidsThisMonth += 1;
+    await userProfile.save();
 
     res.status(201).json(bid);
   } catch (error) {
@@ -233,6 +273,9 @@ exports.acceptBid = async (req, res) => {
     await job.save();
 
     res.json({ message: 'Bid accepted, job in progress', job, bid });
+
+    // Emit real-time update
+    emitJobUpdate(req, [job.client, job.selectedFreelancer]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -266,6 +309,9 @@ exports.deliverJob = async (req, res) => {
     await job.save();
 
     res.json({ message: 'Work delivered successfully, pending client review', job });
+
+    // Emit real-time update
+    emitJobUpdate(req, [job.client, job.selectedFreelancer]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -295,6 +341,9 @@ exports.approveJob = async (req, res) => {
     job.isApproved = true;
     await job.save();
     res.json({ message: 'Job approved successfully', job });
+
+    // Emit real-time update
+    if (job.client) emitJobUpdate(req, [job.client]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -411,6 +460,9 @@ exports.disputeJob = async (req, res) => {
     await job.save();
 
     res.json({ message: 'Job marked as disputed. Admin will review.', job });
+
+    // Emit real-time update
+    emitJobUpdate(req, [job.client, job.selectedFreelancer]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -456,6 +508,9 @@ exports.postCounterOffer = async (req, res) => {
     await bid.save();
 
     res.json({ message: 'Counter-offer submitted successfully', bid });
+
+    // Emit real-time update
+    emitJobUpdate(req, [bid.job.client, bid.freelancer]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -502,6 +557,9 @@ exports.acceptCounterOffer = async (req, res) => {
     );
 
     res.json({ message: 'Negotiation accepted and contract established!', bid });
+
+    // Emit real-time update
+    emitJobUpdate(req, [job.client, job.selectedFreelancer]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -526,6 +584,9 @@ exports.rejectCounterOffer = async (req, res) => {
     await bid.save();
 
     res.json({ message: 'Counter-offer declined successfully', bid });
+
+    // Emit real-time update
+    emitJobUpdate(req, [bid.job.client, bid.freelancer]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -588,10 +649,10 @@ exports.getJobAssets = async (req, res) => {
 exports.uploadJobAsset = async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { name, url, type, size, storagePath } = req.body;
+    const file = req.file;
 
-    if (!name || !url) {
-      return res.status(400).json({ message: 'Asset name and url are required.' });
+    if (!file) {
+      return res.status(400).json({ message: 'No file uploaded.' });
     }
 
     const job = await Job.findById(jobId);
@@ -607,21 +668,19 @@ exports.uploadJobAsset = async (req, res) => {
       return res.status(400).json({ message: 'You can share assets only after a freelancer is hired.' });
     }
 
-    // Basic validation
-    if (size && Number(size) > MAX_ASSET_BYTES) {
-      return res.status(400).json({ message: 'File exceeds the 25 MB limit.' });
-    }
-    const ext = name.split('.').pop().toLowerCase();
-    if (BLOCKED_EXTENSIONS.includes(ext)) {
-      return res.status(400).json({ message: `Files of type .${ext} are not allowed.` });
-    }
+    const name = file.originalname;
+    const size = file.size;
+    const type = file.mimetype;
+    
+    // Construct local URL for the file
+    const url = `${process.env.VITE_API_URL || 'http://localhost:5000'}/uploads/assets/${file.filename}`;
 
     const asset = {
       name,
       url,
       type: type || '',
       size: size ? Number(size) : undefined,
-      storagePath: storagePath || '',
+      storagePath: `uploads/assets/${file.filename}`,
       uploadedBy: req.user.id,
       createdAt: new Date()
     };
@@ -633,15 +692,12 @@ exports.uploadJobAsset = async (req, res) => {
     try {
       const freelancer = await User.findById(job.selectedFreelancer).select('email');
       if (freelancer && freelancer.email) {
-        sendEmail(
+        sendProfessionalEmail(
           freelancer.email,
           `New project asset shared — "${job.title}"`,
-          `The client has shared a new file ("${name}") for the project "${job.title}". Log in to download it from the Assets panel.`,
-          `<div style="font-family:sans-serif;padding:20px">
-             <h2>New Project Asset</h2>
-             <p>The client has shared a new file for <strong>"${job.title}"</strong>.</p>
-             <p>Open the <strong>Assets</strong> panel in your project chat to download it.</p>
-           </div>`
+          "New Project Asset",
+          `<p>The client has shared a new file for <strong>"${job.title}"</strong>.</p>
+           <p>Open the <strong>Assets</strong> panel in your project chat to download it.</p>`
         );
       }
     } catch (mailErr) {
@@ -672,8 +728,277 @@ exports.deleteJobAsset = async (req, res) => {
     asset.deleteOne();
     await job.save();
 
-    res.json({ message: 'Asset removed successfully', assetId });
+    res.json({ message: 'Asset removed successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ── REHIRE / MAINTENANCE FLOW ──────────────────────────────────────────────────
+//
+//  Step 1 (Client)     → POST /:jobId/rehire
+//                         Client describes what upgrade/maintenance they need.
+//                         No budget given — freelancer will quote.
+//
+//  Step 2 (Freelancer) → POST /:jobId/rehire-respond
+//                         Freelancer proposes their price, or declines.
+//
+//  Step 3 (Client)     → POST /:jobId/rehire-accept-counter   (accept)
+//                       → POST /:jobId/rehire-reject-counter   (reject)
+//                         If accepted → job moves in-progress, client goes to /pay/:jobId
+//
+// ────────────────────────────────────────────────────────────────────────────────
+
+// Step 1 — Client sends maintenance/rehire request (description only, no budget)
+exports.createRehireRequest = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { title, description } = req.body;
+
+    if (!description || description.trim().length < 10) {
+      return res.status(400).json({ message: 'Please describe what you need (at least 10 characters).' });
+    }
+
+    const originalJob = await Job.findById(jobId).populate('selectedFreelancer', 'name email');
+    if (!originalJob) return res.status(404).json({ message: 'Original job not found.' });
+
+    if (originalJob.client.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized.' });
+    }
+
+    if (originalJob.status !== 'completed' && originalJob.status !== 'cancelled') {
+      return res.status(400).json({ message: 'Can only send a maintenance request from a completed job.' });
+    }
+
+    if (!originalJob.selectedFreelancer) {
+      return res.status(400).json({ message: 'No freelancer was hired for the original job.' });
+    }
+
+    // Create placeholder rehire job — budget is 0 until freelancer quotes
+    const newJob = await Job.create({
+      client: req.user.id,
+      title: title || `Maintenance: ${originalJob.title}`,
+      description: description,
+      budget: 1, // placeholder, will be set when freelancer quotes
+      category: originalJob.category,
+      skills: originalJob.skills,
+      isApproved: true,
+      status: 'open',
+      isRehire: true,
+      rehireOf: originalJob._id,
+      rehireStatus: 'pending_freelancer', // waiting for freelancer to quote
+      rehireDescription: description,
+      rehireTargetFreelancer: originalJob.selectedFreelancer._id,
+      paymentStatus: 'pending'
+    });
+
+    // Notify freelancer via socket
+    emitJobUpdate(req, [originalJob.selectedFreelancer._id]);
+
+    // Email freelancer
+    try {
+      const client = await User.findById(req.user.id).select('name companyName');
+      const emailHtml = `
+        <p>Hi ${originalJob.selectedFreelancer.name},</p>
+        <p><strong>${client.name || client.companyName}</strong> wants to hire you for a maintenance / upgrade on a previous project.</p>
+        <p><strong>Project:</strong> ${originalJob.title}</p>
+        <p><strong>What they need:</strong></p>
+        <blockquote style="border-left:3px solid #7c3aed;padding:8px 16px;margin:12px 0;color:#555;">${description}</blockquote>
+        <p>Please log in to your WorkSphere dashboard to review and quote a price.</p>
+        <div style="text-align:center;margin-top:24px;">
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="background:#7c3aed;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Quote Your Price</a>
+        </div>
+      `;
+      await sendProfessionalEmail(
+        originalJob.selectedFreelancer.email,
+        'WorkSphere – New Maintenance Request',
+        '🔔 A client wants to hire you again',
+        emailHtml
+      );
+    } catch (mailErr) {
+      console.error('Rehire request email failed:', mailErr);
+    }
+
+    res.status(201).json({ message: 'Maintenance request sent to freelancer.', job: newJob });
+  } catch (error) {
+    console.error('Error creating rehire request:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Step 2 — Freelancer quotes a price or declines
+exports.respondRehireRequest = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { action, proposedAmount } = req.body; // action: 'quote' | 'reject'
+
+    const rehireJob = await Job.findById(jobId)
+      .populate('client', 'name email')
+      .populate('rehireTargetFreelancer', 'name email');
+
+    if (!rehireJob) return res.status(404).json({ message: 'Rehire job not found.' });
+
+    if (rehireJob.rehireTargetFreelancer?._id?.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized.' });
+    }
+
+    if (rehireJob.rehireStatus !== 'pending_freelancer') {
+      return res.status(400).json({ message: 'This request is not awaiting your response.' });
+    }
+
+    if (action === 'reject') {
+      rehireJob.rehireStatus = 'rejected';
+      await rehireJob.save();
+      emitJobUpdate(req, [rehireJob.client._id]);
+      // Email client
+      try {
+        const emailHtml = `
+          <p>Hi ${rehireJob.client.name},</p>
+          <p>Unfortunately, <strong>${rehireJob.rehireTargetFreelancer.name}</strong> is unable to take on the maintenance request for <strong>${rehireJob.title}</strong> at this time.</p>
+        `;
+        await sendProfessionalEmail(rehireJob.client.email, 'WorkSphere – Maintenance Request Declined', '❌ Freelancer declined your request', emailHtml);
+      } catch (mailErr) { console.error('Reject email failed:', mailErr); }
+      return res.json({ message: 'Maintenance request declined.' });
+    }
+
+    if (action === 'quote') {
+      const amount = Number(proposedAmount);
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: 'Please provide a valid quoted amount.' });
+      }
+
+      rehireJob.rehireStatus = 'pending_client'; // waiting for client to accept/reject
+      rehireJob.rehireFreelancerAmount = amount;
+      rehireJob.budget = amount; // update budget with quoted price
+      await rehireJob.save();
+
+      emitJobUpdate(req, [rehireJob.client._id]);
+
+      // Email client
+      try {
+        const emailHtml = `
+          <p>Hi ${rehireJob.client.name},</p>
+          <p><strong>${rehireJob.rehireTargetFreelancer.name}</strong> has quoted a price for your maintenance request on <strong>${rehireJob.title}</strong>.</p>
+          <p><strong>What you requested:</strong></p>
+          <blockquote style="border-left:3px solid #7c3aed;padding:8px 16px;margin:12px 0;color:#555;">${rehireJob.rehireDescription}</blockquote>
+          <p><strong>Freelancer's Quote:</strong> <span style="font-size:20px;font-weight:bold;color:#7c3aed;">₹${amount.toLocaleString('en-IN')}</span></p>
+          <p>Please log in to accept or reject this quote.</p>
+          <div style="text-align:center;margin-top:24px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="background:#7c3aed;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Review Quote</a>
+          </div>
+        `;
+        await sendProfessionalEmail(
+          rehireJob.client.email,
+          'WorkSphere – Freelancer Quoted a Price',
+          '💬 Your maintenance request has been quoted',
+          emailHtml
+        );
+      } catch (mailErr) { console.error('Quote email failed:', mailErr); }
+
+      return res.json({ message: 'Price quoted to client.', job: rehireJob });
+    }
+
+    res.status(400).json({ message: 'Invalid action. Use "quote" or "reject".' });
+  } catch (error) {
+    console.error('Error responding to rehire:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Step 3a — Client accepts the freelancer's quoted price → contract created
+exports.acceptRehireCounter = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const rehireJob = await Job.findById(jobId)
+      .populate('rehireTargetFreelancer', 'name email')
+      .populate('client', 'name email');
+
+    if (!rehireJob) return res.status(404).json({ message: 'Rehire job not found.' });
+
+    if (rehireJob.client._id.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized.' });
+    }
+
+    if (rehireJob.rehireStatus !== 'pending_client') {
+      return res.status(400).json({ message: 'No pending quote to accept.' });
+    }
+
+    const finalAmount = rehireJob.rehireFreelancerAmount;
+
+    rehireJob.rehireStatus = 'accepted';
+    rehireJob.acceptedPrice = finalAmount;
+    rehireJob.budget = finalAmount;
+    rehireJob.selectedFreelancer = rehireJob.rehireTargetFreelancer._id;
+    rehireJob.status = 'in-progress';
+    await rehireJob.save();
+
+    // Create bid record for audit trail
+    await Bid.create({
+      job: rehireJob._id,
+      freelancer: rehireJob.rehireTargetFreelancer._id,
+      amount: finalAmount,
+      proposal: `Maintenance quote accepted. Work: ${rehireJob.rehireDescription}`,
+      status: 'accepted'
+    });
+
+    emitJobUpdate(req, [rehireJob.client._id, rehireJob.rehireTargetFreelancer._id]);
+
+    // Email freelancer — quote accepted
+    try {
+      const emailHtml = `
+        <p>Hi ${rehireJob.rehireTargetFreelancer.name},</p>
+        <p><strong>${rehireJob.client.name}</strong> has accepted your quote of <strong>₹${finalAmount.toLocaleString('en-IN')}</strong> for <strong>${rehireJob.title}</strong>.</p>
+        <p>The client will now fund the project escrow. You'll receive a notification once funds are secured and work can begin.</p>
+      `;
+      await sendProfessionalEmail(
+        rehireJob.rehireTargetFreelancer.email,
+        'WorkSphere – Your Quote Was Accepted!',
+        '✅ Client accepted your maintenance quote',
+        emailHtml
+      );
+    } catch (mailErr) { console.error('Accept quote email failed:', mailErr); }
+
+    res.json({ message: 'Quote accepted. Proceed to payment.', job: rehireJob });
+  } catch (error) {
+    console.error('Error accepting rehire quote:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Step 3b — Client rejects the freelancer's quoted price
+exports.rejectRehireCounter = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const rehireJob = await Job.findById(jobId)
+      .populate('rehireTargetFreelancer', 'name email')
+      .populate('client', 'name email');
+
+    if (!rehireJob) return res.status(404).json({ message: 'Rehire job not found.' });
+    if (rehireJob.client._id.toString() !== req.user.id) return res.status(403).json({ message: 'Not authorized.' });
+    if (rehireJob.rehireStatus !== 'pending_client') return res.status(400).json({ message: 'No pending quote to reject.' });
+
+    rehireJob.rehireStatus = 'rejected';
+    await rehireJob.save();
+
+    emitJobUpdate(req, [rehireJob.rehireTargetFreelancer._id]);
+
+    // Email freelancer
+    try {
+      const emailHtml = `
+        <p>Hi ${rehireJob.rehireTargetFreelancer.name},</p>
+        <p>${rehireJob.client.name} has decided not to proceed with the quoted price of ₹${rehireJob.rehireFreelancerAmount?.toLocaleString('en-IN')} for <strong>${rehireJob.title}</strong>.</p>
+      `;
+      await sendProfessionalEmail(rehireJob.rehireTargetFreelancer.email, 'WorkSphere – Quote Not Accepted', '❌ Client did not accept your quote', emailHtml);
+    } catch (mailErr) { console.error('Reject quote email failed:', mailErr); }
+
+    res.json({ message: 'Quote rejected.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// kept for backward compat
+exports.rehireFreelancer = exports.createRehireRequest;
+

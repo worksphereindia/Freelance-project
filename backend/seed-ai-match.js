@@ -35,11 +35,7 @@ async function seed() {
   }
 
   // 2. Create a client
-  let client = await User.findOne({ email: 'client_ai@worksphere.com' });
-  if (!client) {
-    client = await User.create({ name: 'AI Client', username: 'ai_client', email: 'client_ai@worksphere.com', password: 'password123', role: 'client' });
-    console.log('Created client');
-  }
+  let client = await User.findOne({ email: 'harikiranap123@gmail.com' });
 
   // 3. Create more jobs
   const jobsData = [

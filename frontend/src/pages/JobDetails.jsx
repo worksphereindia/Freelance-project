@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, Calendar, Briefcase, ChevronRight, Eye, CheckCircle2, DollarSign, Star, MessageSquare } from 'lucide-react';
+import { Loader2, Calendar, Briefcase, ChevronRight, Eye, CheckCircle2, IndianRupee, Star, MessageSquare } from 'lucide-react';
 import Avatar from '../components/Avatar';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';

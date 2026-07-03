@@ -11,6 +11,15 @@ export default function AuthModal() {
   const { authModal, closeAuth, login } = useAuth();
   const navigate = useNavigate();
   
+  const validatePassword = (pwd) => {
+    if (pwd.length < 8) return "Password must be at least 8 characters long.";
+    if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter.";
+    if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
+    if (!/[0-9]/.test(pwd)) return "Password must contain at least one number.";
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) return "Password must contain at least one special character.";
+    return null;
+  };
+
   const [isLogin, setIsLogin] = useState(true);
   
   // Forgot Password state
@@ -125,6 +134,14 @@ export default function AuthModal() {
           setIsSubmitting(false);
           return;
         }
+
+        const pwdError = validatePassword(newPassword);
+        if (pwdError) {
+          toast.error(pwdError);
+          setIsSubmitting(false);
+          return;
+        }
+
         const res = await axios.post(import.meta.env.VITE_API_URL + '/api/auth/reset-password', {
           email: resetEmail,
           otp: fullOtp,
@@ -149,10 +166,20 @@ export default function AuthModal() {
     setIsSubmitting(true);
     
     if (!isLogin && !acceptPolicies) {
-      toast.error('You must accept the Privacy Policy and Cookie Consent.');
+      setError('You must accept the Privacy Policy and Cookie Consent.');
       setIsSubmitting(false);
       return;
     }
+
+    if (!isLogin) {
+      const pwdError = validatePassword(password);
+      if (pwdError) {
+        setError(pwdError);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+    setError('');
     
     try {
       if (isLogin) {
@@ -575,6 +602,13 @@ export default function AuthModal() {
                   </div>
                 )}
                 
+                {error && (
+                  <div className="mt-2 mb-2 p-3 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-100 flex items-start gap-2">
+                    <X size={14} className="mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
                 <button 
                   type="submit" 
                   disabled={isSubmitting}

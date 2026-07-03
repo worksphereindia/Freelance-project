@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 
 // Load env vars FIRST
 dotenv.config({ path: __dirname + "/.env" });
@@ -23,6 +24,9 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve uploads statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -50,13 +54,14 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
+app.set('io', io);
 
 const Message = require('./models/Message');
 const SupportMessage = require('./models/SupportMessage');
 const User = require('./models/User');
 const Violation = require('./models/Violation');
-const { encrypt } = require('./utils/crypto');
-const { sendEmail } = require('./utils/email');
+const { encrypt, decrypt } = require('./utils/crypto');
+const { sendEmail, sendProfessionalEmail } = require('./utils/email');
 
 // Regex to detect personal details
 const { detectPersonalInfo } = require('./utils/detectPersonalInfo');
@@ -67,6 +72,14 @@ const VIOLATION_FLAG_THRESHOLD = 5;
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
   
+  // Join a general updates room for a specific user (Dashboard refresh)
+  socket.on('join_updates', (data) => {
+    if (data && data.userId) {
+      socket.join(`updates_${data.userId}`);
+      console.log(`User ${data.userId} joined global updates room`);
+    }
+  });
+
   // Join a room based on Job ID
   socket.on('join_room', async (data) => {
     const roomName = typeof data === 'string' ? data : data.roomName;
@@ -115,8 +128,20 @@ io.on('connection', (socket) => {
     // data expected: { senderId, receiverId, jobId, content, roomName }
     const { senderId, receiverId, jobId, content, roomName } = data;
 
+    // Concatenate recent messages from the same sender to catch split evasion (e.g. sending 5 digits per message)
+    let textToAnalyze = content;
+    try {
+      const recentMessages = await Message.find({ sender: senderId, job: jobId })
+        .sort({ createdAt: -1 })
+        .limit(4);
+      const recentText = recentMessages.reverse().map(m => decrypt(m.content)).join(' ');
+      textToAnalyze = recentText + ' ' + content;
+    } catch (err) {
+      console.error('Error fetching recent messages for filter:', err);
+    }
+
     // Block (do not deliver) any message that shares personal contact / payment details
-    const { flagged, types } = detectPersonalInfo(content);
+    const { flagged, types } = detectPersonalInfo(textToAnalyze);
 
     if (flagged) {
       // Log the violation with the original (encrypted) message for admin review
@@ -187,15 +212,13 @@ io.on('connection', (socket) => {
         // Receiver is likely offline, send email notification
         const receiver = await User.findById(receiverId);
         if (receiver && receiver.email) {
-          sendEmail(
+          sendProfessionalEmail(
             receiver.email,
-            'New Message on WorkOwn',
-            'You have received a new message regarding your project.',
-            `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-               <h2>WorkOwn Notification</h2>
-               <p>You have received a new secure message.</p>
-               <br/>
-               <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Login to Reply</a>
+            'New Message on WorkSphere',
+            'New Message Received',
+            `<p>You have received a new secure message.</p>
+             <div style="margin-top: 25px;">
+               <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Login to Reply</a>
              </div>`
           );
         }

@@ -79,7 +79,7 @@ export default function ContactUs() {
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1">Email Us</h4>
-                  <p className="text-slate-600 font-medium">support@WorkOwn.com</p>
+                  <p className="text-slate-600 font-medium">support@WorkSphere.com</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">

@@ -33,21 +33,32 @@ export const AuthProvider = ({ children }) => {
   const openAuth = (type = 'login') => setAuthModal(type);
   const closeAuth = () => setAuthModal(null);
 
+  const fetchUser = async (authToken) => {
+    try {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/me`);
+      setUser({ ...res.data, token: authToken });
+    } catch (err) {
+      console.error("Failed to fetch user profile:", err);
+      logout();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const decoded = decodeToken(token);
-      if (decoded) {
-        setUser(decoded);
-      } else {
-        logout();
-      }
+      fetchUser(token);
     } else {
       delete axios.defaults.headers.common['Authorization'];
       setUser(null);
+      setLoading(false);
     }
-    setLoading(false);
   }, [token]);
+
+  const refreshUser = () => {
+    if (token) fetchUser(token);
+  };
 
   const login = (newToken, userData) => {
     sessionStorage.setItem('token', newToken);
@@ -69,7 +80,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading, authModal, openAuth, closeAuth }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, authModal, openAuth, closeAuth, refreshUser }}>
       {!loading && children}
     </AuthContext.Provider>
   );

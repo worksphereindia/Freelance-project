@@ -31,8 +31,22 @@ const jobSchema = new mongoose.Schema(
     invitedFreelancers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     acceptedPrice: { type: Number },
     paymentStatus: { type: String, enum: ['pending', 'escrow_funded', 'released', 'refunded'], default: 'pending' },
+
+    // Rehire / Maintenance negotiation fields
+    isRehire: { type: Boolean, default: false },
+    rehireOf: { type: mongoose.Schema.Types.ObjectId, ref: 'Job' }, // original job reference
+    rehireStatus: {
+      type: String,
+      enum: ['none', 'pending_freelancer', 'pending_client', 'accepted', 'rejected'],
+      default: 'none'
+    },
+    rehireDescription: { type: String },
+    rehireClientOffer: { type: Number }, // amount client proposed
+    rehireFreelancerAmount: { type: Number }, // amount freelancer counter-proposed
+    rehireTargetFreelancer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // freelancer being rehired
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model('Job', jobSchema);
+
