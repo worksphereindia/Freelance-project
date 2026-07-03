@@ -67,6 +67,10 @@ export default function AdminPanel() {
   const [violations, setViolations] = useState([]);
   const [loadingViolations, setLoadingViolations] = useState(false);
 
+  // Admin Audit Log State
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
   const getHeaders = () => {
     const token = sessionStorage.getItem('token');
     return { Authorization: `Bearer ${token}` };
@@ -112,6 +116,20 @@ export default function AdminPanel() {
     }
   };
 
+  const fetchAuditLogs = async () => {
+    setLoadingAudit(true);
+    try {
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/admin/audit-logs', {
+        headers: getHeaders()
+      });
+      setAuditLogs(res.data);
+    } catch (err) {
+      console.error('Failed to fetch audit logs', err);
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
+
   const resolveContactMessage = async (id) => {
     try {
       await axios.put(`${import.meta.env.VITE_API_URL}/api/admin/contact-messages/${id}/resolve`, {}, {
@@ -147,6 +165,7 @@ export default function AdminPanel() {
     fetchStats();
     fetchContactMessages();
     fetchViolations();
+    fetchAuditLogs();
   }, []);
 
   const deleteUser = async (id) => {
@@ -157,8 +176,9 @@ export default function AdminPanel() {
       });
       toast.success("User deleted successfully");
       fetchStats();
+      fetchAuditLogs();
     } catch (err) {
-      toast.error("Failed to delete user");
+      toast.error(err.response?.data?.message || "Failed to delete user");
     }
   };
 
@@ -170,8 +190,9 @@ export default function AdminPanel() {
       });
       toast.success("Job deleted successfully");
       fetchStats();
+      fetchAuditLogs();
     } catch (err) {
-      toast.error("Failed to delete job");
+      toast.error(err.response?.data?.message || "Failed to delete job");
     }
   };
 
@@ -520,6 +541,20 @@ export default function AdminPanel() {
                 <ShieldCheck size={18} />
                 Safety Violations
               </span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('audit'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-all ${activeTab === 'audit' ? 'bg-slate-100 text-slate-800 border border-slate-200 shadow-sm' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500'}`}
+            >
+              <span className="flex items-center gap-3">
+                <FileText size={18} />
+                Audit Log
+              </span>
+              {auditLogs.length > 0 && (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${activeTab === 'audit' ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500'}`}>
+                  {auditLogs.length}
+                </span>
+              )}
             </button>
           </nav>
         </div>
@@ -1090,10 +1125,20 @@ export default function AdminPanel() {
                                   {u.name.substring(0,2)}
                                 </div>
                                 <div>
-                                  <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                                  <p className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
                                     {u.name}
                                     {u.role === 'admin' && (
                                       <span className="bg-purple-100 text-purple-700 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">ADMIN</span>
+                                    )}
+                                    {u.isFlagged && (
+                                      <span className="bg-red-100 text-red-700 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase flex items-center gap-1" title="Auto-flagged for repeated policy violations">
+                                        🚩 Flagged
+                                      </span>
+                                    )}
+                                    {u.violationCount > 0 && (
+                                      <span className="bg-amber-100 text-amber-700 text-[9px] px-2 py-0.5 rounded-full font-bold" title="Blocked contact-sharing attempts">
+                                        {u.violationCount} violation{u.violationCount === 1 ? '' : 's'}
+                                      </span>
                                     )}
                                   </p>
                                   <p className="text-[10px] text-slate-400 mt-0.5 capitalize">
@@ -1618,6 +1663,86 @@ export default function AdminPanel() {
                                 </td>
                               </tr>
                             ))
+                          )}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'audit' && (
+              <motion.div
+                key="audit"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-6"
+              >
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                    <h2 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                      <FileText className="text-slate-600" size={20} />
+                      Admin Audit Log
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      A record of destructive and sensitive admin actions (deletions, dispute resolutions, access revocations). Showing the latest 200 entries.
+                    </p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    {loadingAudit ? (
+                      <div className="p-8 text-center text-blue-600 font-semibold">Loading audit log...</div>
+                    ) : (
+                      <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200">
+                          <tr>
+                            <th className="p-4">Timestamp</th>
+                            <th className="p-4">Admin</th>
+                            <th className="p-4">Action</th>
+                            <th className="p-4">Target</th>
+                            <th className="p-4">Details</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {auditLogs.length === 0 ? (
+                            <tr>
+                              <td colSpan="5" className="p-8 text-center text-slate-400">
+                                No admin actions logged yet.
+                              </td>
+                            </tr>
+                          ) : (
+                            auditLogs.map((log) => {
+                              const actionColors = {
+                                delete_user: 'bg-rose-100 text-rose-700',
+                                delete_job: 'bg-rose-100 text-rose-700',
+                                resolve_dispute: 'bg-blue-100 text-blue-700',
+                                revoke_freelancer: 'bg-amber-100 text-amber-700'
+                              };
+                              return (
+                                <tr key={log._id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                                  <td className="p-4 text-xs text-slate-500 whitespace-nowrap">
+                                    {new Date(log.createdAt).toLocaleString()}
+                                  </td>
+                                  <td className="p-4 text-xs font-bold text-slate-800">
+                                    {log.admin?.name || log.adminName || 'Admin'}
+                                  </td>
+                                  <td className="p-4">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${actionColors[log.action] || 'bg-slate-100 text-slate-700'}`}>
+                                      {(log.action || '').replace(/_/g, ' ')}
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-xs text-slate-700 max-w-[180px] truncate" title={log.targetLabel}>
+                                    <span className="text-[9px] uppercase text-slate-400 mr-1">{log.targetType}</span>
+                                    {log.targetLabel || '—'}
+                                  </td>
+                                  <td className="p-4 text-[11px] text-slate-500 max-w-xs whitespace-pre-wrap leading-normal">
+                                    {log.details || '—'}
+                                  </td>
+                                </tr>
+                              );
+                            })
                           )}
                         </tbody>
                       </table>

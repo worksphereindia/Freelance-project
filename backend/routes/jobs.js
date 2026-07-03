@@ -1,5 +1,5 @@
 const express = require('express');
-const { createJob, getJobs, getMyJobs, getJobMessages, placeBid, acceptBid, getJobBids, deliverJob, getJobById, approveJob, getAiMatches, updateBid, disputeJob, postCounterOffer, acceptCounterOffer, rejectCounterOffer, inviteFreelancer } = require('../controllers/jobController');
+const { createJob, getJobs, getMyJobs, getJobMessages, placeBid, acceptBid, getJobBids, deliverJob, getJobById, approveJob, getAiMatches, updateBid, disputeJob, postCounterOffer, acceptCounterOffer, rejectCounterOffer, inviteFreelancer, getJobAssets, uploadJobAsset, deleteJobAsset } = require('../controllers/jobController');
 const { protect, authorize } = require('../middleware/auth');
 const { apiLimiter } = require('../middleware/rateLimiter');
 const { validate, jobSchema } = require('../utils/validators');
@@ -25,5 +25,10 @@ router.post('/bid/:bidId/counter', protect, postCounterOffer);
 router.post('/bid/:bidId/counter/accept', protect, acceptCounterOffer);
 router.post('/bid/:bidId/counter/reject', protect, rejectCounterOffer);
 router.post('/:jobId/dispute', protect, disputeJob);
+
+// Project assets (client shares files with hired freelancer)
+router.get('/:jobId/assets', protect, getJobAssets);
+router.post('/:jobId/assets', protect, authorize('client'), uploadJobAsset);
+router.delete('/:jobId/assets/:assetId', protect, authorize('client'), deleteJobAsset);
 
 module.exports = router;

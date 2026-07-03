@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, MessageSquare, CheckSquare, CreditCard, Landmark, Compass, Briefcase, FileText, Sparkles, BrainCircuit, Star } from 'lucide-react';
+import { Loader2, MessageSquare, CheckSquare, CreditCard, Landmark, Compass, Briefcase, FileText, Sparkles, BrainCircuit, Star, Wallet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import Avatar from '../components/Avatar';
@@ -82,6 +82,10 @@ export default function Dashboard() {
   const [reviewForm, setReviewForm] = useState({ jobId: null, rating: 5, comment: '' });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+  // Freelancer earnings
+  const [earnings, setEarnings] = useState({ summary: { escrowed: 0, received: 0, total: 0, count: 0 }, history: [] });
+  const [loadingEarnings, setLoadingEarnings] = useState(false);
+
   const fetchProfile = async () => {
     try {
       const token = user?.token || sessionStorage.getItem('token');
@@ -93,6 +97,28 @@ export default function Dashboard() {
       console.error("Failed to load user profile", err);
     }
   };
+
+  const fetchEarnings = async () => {
+    try {
+      setLoadingEarnings(true);
+      const token = user?.token || sessionStorage.getItem('token');
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/payments/my', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setEarnings(res.data);
+    } catch (err) {
+      console.error("Failed to load earnings", err);
+    } finally {
+      setLoadingEarnings(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'freelancer' && activeTab === 'earnings') {
+      fetchEarnings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, user]);
 
   useEffect(() => {
     if (showJobModal) {
@@ -468,12 +494,107 @@ export default function Dashboard() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab('earnings')}
+              className={`flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all ${activeTab === 'earnings' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <Wallet size={16} />
+              Earnings
+            </button>
           </>
         )}
       </div>
 
       {/* Tabs Content */}
-      {activeTab === 'talents' ? (
+      {activeTab === 'earnings' ? (
+        // Freelancer Earnings Dashboard
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="flex items-center gap-2 text-amber-600 mb-2">
+                <Landmark size={18} />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">In Escrow</span>
+              </div>
+              <p className="text-3xl font-black text-slate-900">₹{earnings.summary.escrowed.toLocaleString('en-IN')}</p>
+              <p className="text-[11px] text-slate-400 mt-1">Funded by clients, awaiting release</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="flex items-center gap-2 text-emerald-600 mb-2">
+                <Wallet size={18} />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Received</span>
+              </div>
+              <p className="text-3xl font-black text-emerald-600">₹{earnings.summary.received.toLocaleString('en-IN')}</p>
+              <p className="text-[11px] text-slate-400 mt-1">Released to you on completed jobs</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="flex items-center gap-2 text-blue-600 mb-2">
+                <CreditCard size={18} />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Lifetime Total</span>
+              </div>
+              <p className="text-3xl font-black text-slate-900">₹{earnings.summary.total.toLocaleString('en-IN')}</p>
+              <p className="text-[11px] text-slate-400 mt-1">{earnings.summary.count} payment{earnings.summary.count === 1 ? '' : 's'}</p>
+            </div>
+          </div>
+
+          {/* Payment History */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-5 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800">Payment History</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Your escrow and payout activity</p>
+            </div>
+            {loadingEarnings ? (
+              <div className="p-10 text-center text-blue-600 flex items-center justify-center gap-2">
+                <Loader2 size={18} className="animate-spin" /> Loading earnings...
+              </div>
+            ) : earnings.history.length === 0 ? (
+              <div className="p-10 text-center text-sm text-slate-400">
+                No payments yet. Once a client funds escrow for your job, it will appear here.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[11px] uppercase tracking-wider text-slate-400 bg-slate-50">
+                      <th className="px-5 py-3 font-bold">Project</th>
+                      <th className="px-5 py-3 font-bold">Client</th>
+                      <th className="px-5 py-3 font-bold">Date &amp; Time</th>
+                      <th className="px-5 py-3 font-bold text-right">Amount</th>
+                      <th className="px-5 py-3 font-bold text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {earnings.history.map((p) => {
+                      const isReleased = p.status === 'released';
+                      const isEscrow = p.status === 'escrow_funded';
+                      const stamp = isReleased ? p.updatedAt : p.createdAt;
+                      const statusLabel = isReleased ? 'Received' : isEscrow ? 'In Escrow' : 'Pending';
+                      const statusClass = isReleased
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : isEscrow
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-slate-100 text-slate-500 border-slate-200';
+                      return (
+                        <tr key={p._id} className="hover:bg-slate-50/60">
+                          <td className="px-5 py-3.5 font-semibold text-slate-800 max-w-[220px] truncate" title={p.jobTitle}>{p.jobTitle}</td>
+                          <td className="px-5 py-3.5 text-slate-600">{p.clientName}</td>
+                          <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
+                            {new Date(stamp).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">₹{p.amount.toLocaleString('en-IN')}</td>
+                          <td className="px-5 py-3.5 text-center">
+                            <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusClass}`}>{statusLabel}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : activeTab === 'talents' ? (
         <TalentDirectory />
       ) : activeTab === 'discover' || activeTab === 'invited' ? (
         // Explore/Discover/Invited Tab

@@ -241,7 +241,6 @@ export default function PaymentPage() {
                   </div>
                 </div>
                 <div className="text-xs text-slate-500 space-y-1">
-                  <p className="truncate">📧 {job.client?.email}</p>
                   <p>💼 Role: Contract Client</p>
                 </div>
               </div>

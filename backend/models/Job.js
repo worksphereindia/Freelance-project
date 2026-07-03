@@ -15,6 +15,18 @@ const jobSchema = new mongoose.Schema(
     default: 'open'
   },
     deliverableLink: { type: String },
+    // Assets shared by the client with the hired freelancer (files live in Firebase Storage)
+    assets: [
+      {
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+        type: { type: String },
+        size: { type: Number }, // bytes
+        storagePath: { type: String }, // Firebase Storage path (for deletion reference)
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
     selectedFreelancer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     invitedFreelancers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     acceptedPrice: { type: Number },

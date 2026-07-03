@@ -167,12 +167,51 @@ const sendReceiptEmail = async (client, payment, job) => {
   }
 };
 
+// On release, tell both parties the project is complete — revealing ONLY the other side's name (no contact details)
+const sendCompletionEmails = async (payment, job) => {
+  try {
+    const client = await User.findById(payment.client).select('name email');
+    const freelancer = await User.findById(payment.freelancer).select('name email');
+    const amount = payment.freelancerAmount || (payment.amount - payment.platformFee);
+
+    if (freelancer?.email) {
+      await sendEmail(
+        freelancer.email,
+        `Payment released — "${job.title}"`,
+        `Great news! ${client?.name || 'The client'} has released INR ${amount} from escrow for "${job.title}". The project is now marked complete.`,
+        `<div style="font-family:sans-serif;padding:20px">
+           <h2>Payment Released ✓</h2>
+           <p><strong>${client?.name || 'The client'}</strong> has released <strong>₹${amount.toLocaleString('en-IN')}</strong> from escrow for <strong>"${job.title}"</strong>.</p>
+           <p>The project is now marked as complete. Thank you for delivering great work on WorkOwn!</p>
+         </div>`
+      );
+    }
+    if (client?.email) {
+      await sendEmail(
+        client.email,
+        `Project completed — "${job.title}"`,
+        `You've released escrow to ${freelancer?.name || 'your freelancer'} for "${job.title}". The project is now complete.`,
+        `<div style="font-family:sans-serif;padding:20px">
+           <h2>Project Completed ✓</h2>
+           <p>You've released the escrow to <strong>${freelancer?.name || 'your freelancer'}</strong> for <strong>"${job.title}"</strong>.</p>
+           <p>We hope it was a great collaboration. You can hire them again anytime on WorkOwn.</p>
+         </div>`
+      );
+    }
+  } catch (err) {
+    console.error('Failed to send completion emails:', err);
+  }
+};
+
 exports.createOrder = async (req, res) => {
   try {
     const { jobId } = req.body;
     
     const job = await Job.findById(jobId);
     if (!job) return res.status(404).json({ message: 'Job not found' });
+    if (job.client.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to fund this job' });
+    }
     if (!job.selectedFreelancer) return res.status(400).json({ message: 'No freelancer selected yet' });
 
     const basePrice = job.acceptedPrice || job.budget; // Use agreed bid amount if available
@@ -302,7 +341,50 @@ exports.releasePayment = async (req, res) => {
     job.status = 'completed';
     await job.save();
 
+    await sendCompletionEmails(payment, job);
+
     res.json({ message: 'Payment released to freelancer successfully', payment });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Freelancer earnings dashboard: escrowed / received totals + payment history
+exports.getMyPayments = async (req, res) => {
+  try {
+    const payments = await Payment.find({ freelancer: req.user.id })
+      .populate('job', 'title category status')
+      .populate('client', 'name') // privacy: expose client name only
+      .sort({ createdAt: -1 });
+
+    let escrowed = 0; // funds currently held in escrow for this freelancer
+    let received = 0; // funds already released to this freelancer
+
+    const history = payments.map((p) => {
+      const amount = p.freelancerAmount || (p.amount - p.platformFee);
+      if (p.status === 'escrow_funded') escrowed += amount;
+      if (p.status === 'released') received += amount;
+      return {
+        _id: p._id,
+        jobTitle: p.job?.title || 'Project',
+        category: p.job?.category || '',
+        clientName: p.client?.name || 'Client',
+        amount,
+        status: p.status,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt
+      };
+    });
+
+    res.json({
+      summary: {
+        escrowed,
+        received,
+        total: escrowed + received,
+        count: history.length
+      },
+      history
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -326,6 +408,8 @@ exports.releasePaymentByJobId = async (req, res) => {
     job.paymentStatus = 'released';
     job.status = 'completed';
     await job.save();
+
+    await sendCompletionEmails(payment, job);
 
     res.json({ message: 'Payment released to freelancer successfully', payment });
   } catch (error) {

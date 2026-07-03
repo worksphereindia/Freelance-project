@@ -327,7 +327,7 @@ export default function Home() {
           >
             <div className="space-y-3">
               <span className="text-sm font-bold text-slate-600 uppercase tracking-widest">Active Board</span>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">Vetted opportunities in market</h2>
+              <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">Vetted opportunities in the market</h2>
             </div>
             <Link to={user ? "/dashboard" : "/login"} className="group text-slate-900 font-bold flex items-center gap-2 bg-white border-2 border-slate-900 px-6 py-3 rounded-full text-sm transition-all hover:bg-slate-900 hover:text-white">
               View All Projects <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -362,7 +362,7 @@ export default function Home() {
                     <span className="text-xs text-slate-600 font-semibold">{job.client?.companyName || 'Verified Client'}</span>
                   </div>
                   <span className="text-[10px] font-bold px-3 py-1 bg-slate-900 text-white rounded-full">
-                    {job.skillsRequired && job.skillsRequired[0] ? job.skillsRequired[0] : 'React'}
+                    {job.skills?.[0] || job.category || 'General'}
                   </span>
                 </div>
               </motion.div>
@@ -510,7 +510,7 @@ export default function Home() {
               <div className="absolute -right-10 -bottom-10 opacity-10 text-slate-500"><ShieldCheck size={200} /></div>
               <div className="w-14 h-14 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center shadow-md mb-6 relative z-10"><ShieldCheck size={28} /></div>
               <h3 className="text-2xl font-black text-slate-900 mb-3 relative z-10">Military-Grade Escrow</h3>
-              <p className="text-slate-600 font-medium leading-relaxed relative z-10 max-w-md">Payments are deposited to secure virtual accounts before work begins. Funds are strictly released only after client approval.</p>
+              <p className="text-slate-600 font-medium leading-relaxed relative z-10 max-w-md">Payments are deposited into secure virtual accounts before work begins. Funds are strictly released only after client approval.</p>
             </motion.div>
             
             <motion.div 

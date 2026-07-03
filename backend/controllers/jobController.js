@@ -3,6 +3,7 @@ const Bid = require('../models/Bid');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const { decrypt } = require('../utils/crypto');
+const { sendEmail } = require('../utils/email');
 const axios = require('axios');
 
 exports.createJob = async (req, res) => {
@@ -50,7 +51,7 @@ exports.getJobs = async (req, res) => {
 exports.getMyJobs = async (req, res) => {
   try {
     if (req.user.role === 'client') {
-      const jobs = await Job.find({ client: req.user.id }).populate('selectedFreelancer', 'name email profilePicture').sort({ createdAt: -1 }).lean();
+      const jobs = await Job.find({ client: req.user.id }).populate('selectedFreelancer', 'name profilePicture skills rating').sort({ createdAt: -1 }).lean();
       
       // Attach bid count to each job
       const jobsWithBids = await Promise.all(jobs.map(async (job) => {
@@ -149,7 +150,7 @@ exports.getJobBids = async (req, res) => {
       query.freelancer = req.user.id;
     }
     
-    const bids = await Bid.find(query).populate('freelancer', 'name email skills rating profilePicture');
+    const bids = await Bid.find(query).populate('freelancer', 'name skills rating profilePicture experience');
     res.json(bids);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -273,8 +274,8 @@ exports.deliverJob = async (req, res) => {
 exports.getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.jobId)
-      .populate('client', 'name email companyName profilePicture')
-      .populate('selectedFreelancer', 'name email skills rating portfolioUrl experience location profilePicture');
+      .populate('client', 'name companyName profilePicture')
+      .populate('selectedFreelancer', 'name skills rating portfolioUrl experience location profilePicture');
     if (!job) return res.status(404).json({ message: 'Job not found' });
     res.json(job);
   } catch (error) {
@@ -547,6 +548,131 @@ exports.inviteFreelancer = async (req, res) => {
     }
     
     res.json({ message: 'Freelancer invited successfully', job });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ---- Project Assets (client shares files with the hired freelancer) ----
+
+const MAX_ASSET_BYTES = 25 * 1024 * 1024; // 25 MB
+const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'msi', 'com', 'scr', 'js', 'jar'];
+
+// Only the job owner (client) and the selected freelancer may see/manage assets
+const canAccessJobAssets = (job, userId) => {
+  const isClient = job.client.toString() === userId;
+  const isFreelancer = job.selectedFreelancer && job.selectedFreelancer.toString() === userId;
+  return { isClient, isFreelancer, allowed: isClient || isFreelancer };
+};
+
+exports.getJobAssets = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const job = await Job.findById(jobId).select('client selectedFreelancer assets');
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    const { allowed } = canAccessJobAssets(job, req.user.id);
+    if (!allowed) {
+      return res.status(403).json({ message: 'Not authorized to view assets for this job' });
+    }
+
+    const assets = [...(job.assets || [])].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    res.json(assets);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.uploadJobAsset = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { name, url, type, size, storagePath } = req.body;
+
+    if (!name || !url) {
+      return res.status(400).json({ message: 'Asset name and url are required.' });
+    }
+
+    const job = await Job.findById(jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // Only the client who owns the job can share assets
+    if (job.client.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Only the hiring client can upload assets.' });
+    }
+
+    // Assets are only shareable once a freelancer has been hired (job accepted)
+    if (!job.selectedFreelancer) {
+      return res.status(400).json({ message: 'You can share assets only after a freelancer is hired.' });
+    }
+
+    // Basic validation
+    if (size && Number(size) > MAX_ASSET_BYTES) {
+      return res.status(400).json({ message: 'File exceeds the 25 MB limit.' });
+    }
+    const ext = name.split('.').pop().toLowerCase();
+    if (BLOCKED_EXTENSIONS.includes(ext)) {
+      return res.status(400).json({ message: `Files of type .${ext} are not allowed.` });
+    }
+
+    const asset = {
+      name,
+      url,
+      type: type || '',
+      size: size ? Number(size) : undefined,
+      storagePath: storagePath || '',
+      uploadedBy: req.user.id,
+      createdAt: new Date()
+    };
+
+    job.assets.push(asset);
+    await job.save();
+
+    // Notify the freelancer that a new asset is available (best-effort)
+    try {
+      const freelancer = await User.findById(job.selectedFreelancer).select('email');
+      if (freelancer && freelancer.email) {
+        sendEmail(
+          freelancer.email,
+          `New project asset shared — "${job.title}"`,
+          `The client has shared a new file ("${name}") for the project "${job.title}". Log in to download it from the Assets panel.`,
+          `<div style="font-family:sans-serif;padding:20px">
+             <h2>New Project Asset</h2>
+             <p>The client has shared a new file for <strong>"${job.title}"</strong>.</p>
+             <p>Open the <strong>Assets</strong> panel in your project chat to download it.</p>
+           </div>`
+        );
+      }
+    } catch (mailErr) {
+      console.error('Asset notification email failed:', mailErr);
+    }
+
+    const saved = job.assets[job.assets.length - 1];
+    res.status(201).json({ message: 'Asset shared successfully', asset: saved });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deleteJobAsset = async (req, res) => {
+  try {
+    const { jobId, assetId } = req.params;
+    const job = await Job.findById(jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // Only the client who owns the job can remove assets
+    if (job.client.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to remove this asset.' });
+    }
+
+    const asset = job.assets.id(assetId);
+    if (!asset) return res.status(404).json({ message: 'Asset not found' });
+
+    asset.deleteOne();
+    await job.save();
+
+    res.json({ message: 'Asset removed successfully', assetId });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -276,7 +276,9 @@ export default function JobDetails() {
                           <Avatar name={bid.freelancer?.name} src={bid.freelancer?.profilePicture} size={36} className="bg-blue-500 text-white font-bold" />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-bold text-sm text-slate-800 truncate">{bid.freelancer?.name}</h4>
-                            <p className="text-[10px] text-slate-500 truncate">{bid.freelancer?.email}</p>
+                            {bid.freelancer?.skills?.length > 0 && (
+                              <p className="text-[10px] text-slate-500 truncate">{bid.freelancer.skills.slice(0, 3).join(', ')}</p>
+                            )}
                           </div>
                         </div>
 
@@ -442,14 +444,16 @@ export default function JobDetails() {
                   <Avatar name={selectedBid.freelancer?.name} src={selectedBid.freelancer?.profilePicture} size={40} className="bg-blue-500 text-white font-bold" />
                   <div className="min-w-0 flex-1">
                     <h3 className="font-bold text-sm text-slate-800 truncate">{selectedBid.freelancer?.name}</h3>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{selectedBid.freelancer?.email}</p>
+                    {selectedBid.freelancer?.experience && (
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{selectedBid.freelancer.experience} yrs experience</p>
+                    )}
                     <div className="flex items-center gap-1 text-[10px] font-bold text-slate-600 mt-1">
                       <Star size={10} className="text-amber-500 fill-amber-500" />
                       <span>{selectedBid.freelancer?.rating?.toFixed(1) || '0.0'}</span>
                     </div>
                     {selectedBid.freelancer?.adminRating > 0 && (
                       <div className="inline-flex items-center gap-1 mt-1.5 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-100 font-bold text-[9px] uppercase tracking-wide">
-                        <CheckCircle size={10} className="text-blue-500" />
+                        <CheckCircle2 size={10} className="text-blue-500" />
                         Admin Verified: {selectedBid.freelancer.adminRating} <Star size={8} className="fill-blue-600 text-blue-600 inline ml-0.5 -mt-0.5" />
                       </div>
                     )}

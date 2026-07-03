@@ -59,34 +59,10 @@ const { encrypt } = require('./utils/crypto');
 const { sendEmail } = require('./utils/email');
 
 // Regex to detect personal details
-const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-const phoneRegex = /\b\d{10}\b/; // Simplistic Indian phone number check
-const upiRegex = /[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}/;
+const { detectPersonalInfo } = require('./utils/detectPersonalInfo');
 
-function maskSensitiveData(text) {
-  let masked = text;
-  const types = [];
-
-  // Match and mask emails
-  if (emailRegex.test(masked)) {
-    types.push('email');
-    masked = masked.replace(new RegExp(emailRegex, 'g'), '[SENSITIVE INFO: EMAIL MASKED]');
-  }
-
-  // Match and mask UPIs
-  if (upiRegex.test(masked)) {
-    types.push('upi');
-    masked = masked.replace(new RegExp(upiRegex, 'g'), '[SENSITIVE INFO: UPI MASKED]');
-  }
-
-  // Match and mask phone numbers
-  if (phoneRegex.test(masked)) {
-    types.push('phone');
-    masked = masked.replace(new RegExp(phoneRegex, 'g'), '[SENSITIVE INFO: PHONE MASKED]');
-  }
-
-  return { masked, types: [...new Set(types)] };
-}
+// After this many blocked attempts, the user is auto-flagged for admin review
+const VIOLATION_FLAG_THRESHOLD = 5;
 
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
@@ -139,15 +115,11 @@ io.on('connection', (socket) => {
     // data expected: { senderId, receiverId, jobId, content, roomName }
     const { senderId, receiverId, jobId, content, roomName } = data;
 
-    let displayContent = content;
-    const { masked, types } = maskSensitiveData(content);
+    // Block (do not deliver) any message that shares personal contact / payment details
+    const { flagged, types } = detectPersonalInfo(content);
 
-    if (types.length > 0) {
-      displayContent = masked;
-      socket.emit('warning', { 
-        message: 'Warning: Sharing contact/payment details is forbidden. Your message has been masked, and this violation has been logged.' 
-      });
-
+    if (flagged) {
+      // Log the violation with the original (encrypted) message for admin review
       try {
         await Violation.create({
           sender: senderId,
@@ -159,7 +131,31 @@ io.on('connection', (socket) => {
       } catch (err) {
         console.error('Error logging safety violation:', err);
       }
+
+      // Track repeat offenders and auto-flag for admin review
+      try {
+        const updated = await User.findByIdAndUpdate(
+          senderId,
+          { $inc: { violationCount: 1 } },
+          { new: true }
+        );
+        if (updated && updated.violationCount >= VIOLATION_FLAG_THRESHOLD && !updated.isFlagged) {
+          updated.isFlagged = true;
+          await updated.save();
+        }
+      } catch (err) {
+        console.error('Error updating violation count:', err);
+      }
+
+      // Tell the sender the message was blocked; nothing is stored or broadcast
+      socket.emit('message_blocked', {
+        message: 'Message blocked: sharing contact or payment details (phone, email, UPI, social handles) is not allowed. This attempt has been logged.',
+        types
+      });
+      return;
     }
+
+    const displayContent = content;
 
     // Check if receiver is in the room
     const roomClients = io.sockets.adapter.rooms.get(roomName || jobId);

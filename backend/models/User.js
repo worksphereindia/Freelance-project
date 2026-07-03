@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema(
     bankAccount: { type: String }, // Encrypted
     
     isFlagged: { type: Boolean, default: false },
+    violationCount: { type: Number, default: 0 }, // blocked contact-sharing attempts
     isVerified: { type: Boolean, default: false },
     otp: { type: String },
     otpExpires: { type: Date },

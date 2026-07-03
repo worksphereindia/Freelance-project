@@ -7,8 +7,21 @@ import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
+import { storage } from '../firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { containsPersonalInfo } from '../utils/personalInfo';
 
 let socket;
+
+const formatBytes = (bytes) => {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const MAX_ASSET_BYTES = 25 * 1024 * 1024;
+const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'msi', 'com', 'scr', 'js', 'jar'];
 
 export default function Chat() {
   const [jobs, setJobs] = useState([]);
@@ -32,6 +45,12 @@ export default function Chat() {
   const [showCounterModal, setShowCounterModal] = useState(false);
   const [counterAmount, setCounterAmount] = useState('');
   const [counterMessage, setCounterMessage] = useState('');
+
+  // Project Assets State
+  const [showAssets, setShowAssets] = useState(false);
+  const [assets, setAssets] = useState([]);
+  const [uploadingAsset, setUploadingAsset] = useState(false);
+  const fileInputRef = useRef(null);
 
   const fetchMyJobs = async () => {
     try {
@@ -290,6 +309,10 @@ export default function Chat() {
       toast.error(data.message, { duration: 5000 });
     });
 
+    socket.on('message_blocked', (data) => {
+      toast.error(data.message, { duration: 6000 });
+    });
+
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       socket.disconnect();
@@ -337,6 +360,12 @@ export default function Chat() {
       return;
     }
 
+    // Prevent sharing personal contact / payment details (server also blocks & logs)
+    if (containsPersonalInfo(message)) {
+      toast.error('Sharing contact or payment details (phone, email, UPI, social handles) is not allowed on WorkOwn.', { duration: 5000 });
+      return;
+    }
+
     const msgData = {
       senderId: user.id || user._id,
       receiverId: receiverId,
@@ -344,7 +373,7 @@ export default function Chat() {
       content: message,
       roomName: selectedJob.roomName
     };
-    
+
     socket.emit('send_message', msgData);
     setMessage('');
   };
@@ -447,6 +476,87 @@ export default function Chat() {
       fetchMyJobs();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit counter-offer');
+    }
+  };
+
+  // Assets are shareable only on an active engagement (a freelancer is hired)
+  const assetsAvailable = !!(selectedJob && !selectedJob.isSupport && selectedJob.job && selectedJob.status !== 'open');
+
+  const fetchAssets = async () => {
+    if (!assetsAvailable) { setAssets([]); return; }
+    try {
+      const token = user?.token || sessionStorage.getItem('token');
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/jobs/${selectedJob.job._id}/assets`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAssets(res.data || []);
+    } catch (err) {
+      console.error('Failed to load assets', err);
+    }
+  };
+
+  useEffect(() => {
+    setShowAssets(false);
+    setAssets([]);
+    if (assetsAvailable) fetchAssets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJob?._id]);
+
+  const handleAssetPick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleAssetUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = ''; // allow re-selecting the same file
+    if (!file || !selectedJob?.job?._id) return;
+
+    if (file.size > MAX_ASSET_BYTES) {
+      toast.error('File exceeds the 25 MB limit.');
+      return;
+    }
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (BLOCKED_EXTENSIONS.includes(ext)) {
+      toast.error(`Files of type .${ext} are not allowed.`);
+      return;
+    }
+
+    setUploadingAsset(true);
+    try {
+      const token = user?.token || sessionStorage.getItem('token');
+      const safeName = file.name.replace(/[^\w.-]/g, '_');
+      const path = `assets/${selectedJob.job._id}/${Date.now()}_${safeName}`;
+      const fileRef = storageRef(storage, path);
+
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/jobs/${selectedJob.job._id}/assets`,
+        { name: file.name, url, type: file.type, size: file.size, storagePath: path },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setAssets((prev) => [res.data.asset, ...prev]);
+      toast.success('Asset shared with freelancer');
+    } catch (err) {
+      console.error('Asset upload failed', err);
+      toast.error(err.response?.data?.message || 'Failed to upload asset');
+    } finally {
+      setUploadingAsset(false);
+    }
+  };
+
+  const handleAssetDelete = async (assetId) => {
+    try {
+      const token = user?.token || sessionStorage.getItem('token');
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/jobs/${selectedJob.job._id}/assets/${assetId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAssets((prev) => prev.filter((a) => a._id !== assetId));
+      toast.success('Asset removed');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to remove asset');
     }
   };
 
@@ -560,6 +670,19 @@ export default function Chat() {
             </div>
             
             <div className="flex items-center gap-3">
+              {assetsAvailable && (
+                <button
+                  type="button"
+                  onClick={() => setShowAssets((s) => !s)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98] ${
+                    showAssets
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200'
+                  }`}
+                >
+                  📎 Assets{assets.length > 0 ? ` (${assets.length})` : ''}
+                </button>
+              )}
               {selectedJob.status === 'open' && selectedJob.bidId && (
                 <button
                   type="button"
@@ -576,6 +699,86 @@ export default function Chat() {
               )}
             </div>
           </div>
+
+          {/* Project Assets Panel */}
+          {assetsAvailable && showAssets && (
+            <div className="bg-slate-50 border-b border-slate-200 p-4 space-y-3 shadow-inner z-10 text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  📎 Project Assets
+                </span>
+                {user.role === 'client' && (
+                  <>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleAssetUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAssetPick}
+                      disabled={uploadingAsset}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingAsset ? 'Uploading…' : '⬆ Upload file'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <p className="text-[10px] text-slate-400">
+                {user.role === 'client'
+                  ? 'Share briefs, images, or reference files with your hired freelancer. Max 25 MB per file.'
+                  : 'Files shared by the client for this project. Click to download.'}
+              </p>
+
+              {assets.length === 0 ? (
+                <div className="text-center py-4 text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl bg-white">
+                  No assets shared yet.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-52 overflow-y-auto custom-scrollbar">
+                  {assets.map((asset) => (
+                    <div
+                      key={asset._id}
+                      className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-700 truncate" title={asset.name}>
+                          {asset.name}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          {formatBytes(asset.size)}{asset.size ? ' · ' : ''}
+                          {new Date(asset.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <a
+                          href={asset.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold rounded-lg border border-blue-200 transition-colors"
+                        >
+                          Download
+                        </a>
+                        {user.role === 'client' && (
+                          <button
+                            type="button"
+                            onClick={() => handleAssetDelete(asset._id)}
+                            className="px-2.5 py-1.5 bg-white hover:bg-rose-50 text-rose-600 text-xs font-bold rounded-lg border border-slate-200 transition-colors"
+                            title="Remove asset"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Visual Timeline and Action buttons for Negotiation */}
           {selectedJob.negotiationHistory && selectedJob.negotiationHistory.length > 0 && (
@@ -671,10 +874,15 @@ export default function Chat() {
           )}
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#f8fafc]">
-            <div className="flex justify-center mb-6">
+            <div className="flex flex-col items-center gap-2 mb-6">
               <span className="bg-blue-50 text-blue-700 text-xs px-4 py-1.5 rounded-full font-medium flex items-center shadow-sm border border-blue-100">
                 🔒 Messages are encrypted in transit and at rest
               </span>
+              {!selectedJob.isSupport && (
+                <span className="bg-amber-50 text-amber-700 text-[11px] px-4 py-1.5 rounded-full font-medium flex items-center shadow-sm border border-amber-100 text-center">
+                  🛡️ Sharing phone numbers, emails, UPI, or social handles is blocked and monitored
+                </span>
+              )}
             </div>
 
             {messages.length === 0 && (

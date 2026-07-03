@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { signInWithGoogle } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +9,7 @@ import toast from 'react-hot-toast';
 
 export default function AuthModal() {
   const { authModal, closeAuth, login } = useAuth();
+  const navigate = useNavigate();
   
   const [isLogin, setIsLogin] = useState(true);
   
@@ -160,15 +162,19 @@ export default function AuthModal() {
         toast.success('Successfully logged in!');
         closeAuth();
       } else {
-        const res = await axios.post(import.meta.env.VITE_API_URL + '/api/auth/register', { name, email, password, role, phoneNumber });
-        toast.success('Registration successful. You can now log in.');
-        setIsLogin(true); // switch to login modal
+        await axios.post(import.meta.env.VITE_API_URL + '/api/auth/register', { name, email, password, role, phoneNumber });
+        toast.success('Registration successful! Enter the OTP sent to your email.');
+        closeAuth();
+        navigate('/verify-otp', { state: { email } });
       }
     } catch (err) {
       if (err.message === 'Network Error') {
         toast.error('Unable to connect to server. Please try again.');
       } else if (err.response?.data?.requireVerification) {
-        toast.error('Please verify your email first.');
+        // Account exists but email not verified — send them to the OTP screen
+        toast('Please verify your email to continue.', { icon: '📧' });
+        closeAuth();
+        navigate('/verify-otp', { state: { email: err.response.data.email || email } });
       } else {
         toast.error(err.response?.data?.message || (isLogin ? 'Login failed' : 'Registration failed'));
       }

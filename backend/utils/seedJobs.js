@@ -4,6 +4,12 @@ const bcrypt = require('bcrypt');
 
 const seedJobs = async () => {
   try {
+    // Only seed when explicitly enabled (prevents re-inserting demo data on every boot)
+    if (process.env.SEED !== 'true') {
+      console.log('Seeding disabled (set SEED=true in .env to enable).');
+      return;
+    }
+
     const jobCount = await Job.countDocuments();
     if (jobCount > 0) {
       console.log('Database already has jobs. Skipping seeding.');

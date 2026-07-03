@@ -10,7 +10,7 @@ const paymentSchema = new mongoose.Schema(
     amount: { type: Number, required: true }, // Total amount in INR
     platformFee: { type: Number, required: true }, // 5% fee
     freelancerAmount: { type: Number, required: true }, // 95% to freelancer
-    status: { type: String, enum: ['created', 'escrow_funded', 'released'], default: 'created' },
+    status: { type: String, enum: ['created', 'escrow_funded', 'released', 'refunded'], default: 'created' },
   },
   { timestamps: true }
 );

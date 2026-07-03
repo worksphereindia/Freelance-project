@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, LogOut, Settings, ShieldCheck, ChevronDown, Menu, X, Home as HomeIcon, Info, Briefcase, MessageSquare } from 'lucide-react';
 import toast, { Toaster, ToastBar } from 'react-hot-toast';
 import Loading from './components/Loading';
-import SmoothScroll from './components/SmoothScroll';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Avatar from './components/Avatar';
@@ -344,14 +343,12 @@ function AppContent() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
       <AppNav />
       <AuthModal />
-      <SmoothScroll>
-        <div className={`pt-16 flex flex-col min-h-screen ${isAdmin ? 'h-[calc(100vh-64px)] overflow-hidden' : ''}`}>
-          {!isAdmin && <Breadcrumbs />}
-          <AppRoutes />
-          {!isAdmin && <ContactUs />}
-          {!isAdmin && <Footer />}
-        </div>
-      </SmoothScroll>
+      <div className={`pt-16 flex flex-col min-h-screen ${isAdmin ? 'h-[calc(100vh-64px)] overflow-hidden' : ''}`}>
+        {!isAdmin && <Breadcrumbs />}
+        <AppRoutes />
+        {!isAdmin && <ContactUs />}
+        {!isAdmin && <Footer />}
+      </div>
     </div>
   );
 }
