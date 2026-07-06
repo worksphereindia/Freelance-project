@@ -310,19 +310,17 @@ function AppNav() {
 // Protected Route Wrapper
 function ProtectedRoute({ children, requireCompleteProfile = true }) {
   const { user, loading, openAuth } = useAuth();
-  const navigate = useNavigate();
   
   useEffect(() => {
     if (!loading && !user) {
       openAuth('login');
-      navigate('/', { replace: true });
     }
-  }, [user, loading, openAuth, navigate]);
+  }, [user, loading, openAuth]);
 
   if (loading) return <Loading />;
   
   if (!user) {
-    return null;
+    return <Navigate to="/" replace />;
   }
 
   // If user hasn't completed their profile, redirect to complete-profile
@@ -342,12 +340,12 @@ function AdminRoute({ children }) {
 
 function LoginRedirect() {
   const { openAuth } = useAuth();
-  const navigate = useNavigate();
+  
   useEffect(() => {
     openAuth('login');
-    navigate('/', { replace: true });
-  }, [openAuth, navigate]);
-  return null;
+  }, [openAuth]);
+  
+  return <Navigate to="/" replace />;
 }
 
 function AppRoutes() {
