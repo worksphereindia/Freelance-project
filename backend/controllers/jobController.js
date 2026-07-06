@@ -1002,3 +1002,30 @@ exports.rejectRehireCounter = async (req, res) => {
 // kept for backward compat
 exports.rehireFreelancer = exports.createRehireRequest;
 
+exports.generateProposal = async (req, res) => {
+  try {
+    const { jobId } = req.body;
+    const user = req.user;
+
+    if (user.role !== 'freelancer' || user.subscriptionPlan !== 'advanced') {
+      return res.status(403).json({ message: 'Only Pro freelancers can use Magic AI Proposal' });
+    }
+
+    const job = await Job.findById(jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    // Assuming we have the freelancer's data from req.user
+    const aiPayload = {
+      job_title: job.title,
+      job_description: job.description,
+      freelancer_name: user.name,
+      freelancer_skills: user.skills || []
+    };
+
+    const response = await axios.post('http://localhost:8000/generate-proposal', aiPayload);
+    res.json({ proposal: response.data.proposal });
+  } catch (error) {
+    console.error('Error generating AI proposal:', error.message);
+    res.status(500).json({ message: 'Failed to generate proposal from AI service' });
+  }
+};

@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, User as UserIcon, Send, MessageSquare, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
 export default function ContactUs() {
   const { user, openAuth } = useAuth();
+  const navigate = useNavigate();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,21 +75,21 @@ export default function ContactUs() {
             </p>
 
             <div className="space-y-6 pt-4">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-600 shadow-sm">
+              <a href="mailto:support@WorkSphere.com" className="flex items-start gap-4 group cursor-pointer">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-600 shadow-sm group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-all">
                   <Mail size={20} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1">Email Us</h4>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1 group-hover:text-blue-600 transition-colors">Email Us</h4>
                   <p className="text-slate-600 font-medium">support@WorkSphere.com</p>
                 </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-600 shadow-sm">
+              </a>
+              <div onClick={() => { if (!user) openAuth('login'); else navigate('/chat'); }} className="flex items-start gap-4 group cursor-pointer">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-600 shadow-sm group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-all">
                   <MessageSquare size={20} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1">Live Chat</h4>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-1 group-hover:text-blue-600 transition-colors">Live Chat</h4>
                   <p className="text-slate-600 font-medium">Available for verified users in dashboard</p>
                 </div>
               </div>

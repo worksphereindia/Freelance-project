@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Camera } from 'lucide-react';
+import Avatar from '../components/Avatar';
 
 export default function EditProfile() {
   const { user, login } = useAuth();
@@ -19,6 +21,8 @@ export default function EditProfile() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [profilePictureFile, setProfilePictureFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -33,6 +37,7 @@ export default function EditProfile() {
           skills: data.skills ? data.skills.join(', ') : '',
           portfolioUrl: data.portfolioUrl || ''
         });
+        setPreviewUrl(data.profilePicture || '');
       } catch (err) {
         toast.error('Failed to load profile data');
       }
@@ -40,14 +45,48 @@ export default function EditProfile() {
     if (user) fetchProfile();
   }, [user]);
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      setProfilePictureFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setSuccess('');
     try {
-      const res = await axios.put(import.meta.env.VITE_API_URL + '/api/auth/profile', formData);
-      login(res.data.token, res.data);
+      const token = sessionStorage.getItem('token');
+      let updatedUser = user;
+
+      // Handle profile picture upload if a new file is selected
+      if (profilePictureFile) {
+        const formDataUpload = new FormData();
+        formDataUpload.append('profilePicture', profilePictureFile);
+        const uploadRes = await axios.post(import.meta.env.VITE_API_URL + '/api/users/profile-picture', formDataUpload, {
+          headers: { 
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}` 
+          }
+        });
+        updatedUser = uploadRes.data.user;
+      }
+
+      const resUpdate = await axios.put(import.meta.env.VITE_API_URL + '/api/auth/profile', formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update context with the latest user data including new token if issued, else use current token
+      const tokenToUse = resUpdate.data.token || sessionStorage.getItem('token');
+      login(tokenToUse, { ...resUpdate.data, profilePicture: updatedUser?.profilePicture });
+      
       toast.success('Profile updated successfully!');
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err) {
@@ -64,11 +103,31 @@ export default function EditProfile() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100"
       >
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Edit Profile</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">Edit Profile</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* Profile Picture Upload Section */}
+          <div className="flex flex-col items-center justify-center mb-6 relative">
+            <div className="relative group cursor-pointer">
+              <Avatar src={previewUrl || user?.profilePicture} name={user?.name || "User"} size={100} />
+              
+              <label className="absolute inset-0 bg-slate-900/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                <Camera className="text-white" size={24} />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                />
+              </label>
+            </div>
+            <p className="text-xs font-semibold text-slate-500 mt-3">Click to update photo</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
             <input 
               type="text" 
               className="w-full px-4 py-3 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed"
@@ -131,6 +190,7 @@ export default function EditProfile() {
               </div>
             </>
           )}
+          </div>
 
           <button 
             type="submit" 

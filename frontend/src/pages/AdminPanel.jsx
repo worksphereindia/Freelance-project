@@ -18,6 +18,7 @@ import {
   UserX,
   FileText,
   Menu,
+  CreditCard,
   AlertCircle,
   MessageSquare,
   MapPin,
@@ -543,6 +544,15 @@ export default function AdminPanel() {
               </span>
             </button>
             <button
+              onClick={() => { setActiveTab('subscriptions'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-all ${activeTab === 'subscriptions' ? 'bg-blue-50 text-blue-600 border border-blue-100/50 shadow-sm' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500'}`}
+            >
+              <span className="flex items-center gap-3">
+                <CreditCard size={18} />
+                Subscriptions
+              </span>
+            </button>
+            <button
               onClick={() => { setActiveTab('audit'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-all ${activeTab === 'audit' ? 'bg-slate-100 text-slate-800 border border-slate-200 shadow-sm' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500'}`}
             >
@@ -611,7 +621,7 @@ export default function AdminPanel() {
                 className="space-y-8"
               >
                 {/* Stats Cards Row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                   {/* Card 1 */}
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-shadow">
                     <div className="space-y-2">
@@ -635,6 +645,17 @@ export default function AdminPanel() {
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
                       <TrendingUp size={22} />
+                    </div>
+                  </div>
+                  {/* Card 2.5 - Subscriptions */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-shadow">
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Subscription Revenue</p>
+                      <p className="text-2xl font-black text-slate-900">₹{(stats?.totalSubscriptionRevenue || 0).toLocaleString('en-IN')}</p>
+                      <p className="text-[10px] text-blue-500 font-bold">Freelancer Plan Sales</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                      <CreditCard size={22} />
                     </div>
                   </div>
 
@@ -1141,10 +1162,17 @@ export default function AdminPanel() {
                                       </span>
                                     )}
                                   </p>
-                                  <p className="text-[10px] text-slate-400 mt-0.5 capitalize">
-                                    {u.role}
-                                    {u.role === 'freelancer' && ` (⭐ Admin: ${u.adminRating || 'Unrated'} | Client: ${u.rating || 'Unrated'})`}
-                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                    <p className="text-[10px] text-slate-400 capitalize">
+                                      {u.role}
+                                      {u.role === 'freelancer' && ` (⭐ Admin: ${u.adminRating || 'Unrated'} | Client: ${u.rating || 'Unrated'})`}
+                                    </p>
+                                    {u.subscriptionPlan && u.subscriptionPlan !== 'none' && (
+                                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${u.subscriptionPlan === 'advanced' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700'}`}>
+                                        {u.subscriptionPlan} Plan
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </td>
                               <td className="p-4 text-slate-500 font-medium">
@@ -1747,6 +1775,81 @@ export default function AdminPanel() {
                         </tbody>
                       </table>
                     )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'subscriptions' && (
+              <motion.div
+                key="subscriptions"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-6"
+              >
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                    <h2 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                      <CreditCard className="text-blue-600" size={20} />
+                      Subscription Payments
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      A record of all freelancer subscription payments. Total Revenue: ₹{(stats?.totalSubscriptionRevenue || 0).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200">
+                        <tr>
+                          <th className="p-4">Timestamp</th>
+                          <th className="p-4">User</th>
+                          <th className="p-4">Plan</th>
+                          <th className="p-4">Amount</th>
+                          <th className="p-4">Status</th>
+                          <th className="p-4">Transaction ID</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {!(stats?.subscriptionPayments?.length) ? (
+                          <tr>
+                            <td colSpan="6" className="p-8 text-center text-slate-400">
+                              No subscription payments recorded yet.
+                            </td>
+                          </tr>
+                        ) : (
+                          stats.subscriptionPayments.map((payment) => (
+                            <tr key={payment._id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 text-xs text-slate-500 whitespace-nowrap">
+                                {new Date(payment.createdAt).toLocaleString()}
+                              </td>
+                              <td className="p-4 text-xs font-bold text-slate-800">
+                                {payment.user?.name || 'Unknown User'}<br/>
+                                <span className="font-normal text-slate-500">{payment.user?.email}</span>
+                              </td>
+                              <td className="p-4 text-xs uppercase font-bold text-slate-700">
+                                {payment.plan}
+                              </td>
+                              <td className="p-4 text-sm font-black text-slate-900">
+                                ₹{payment.amount}
+                              </td>
+                              <td className="p-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                  payment.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
+                                  payment.status === 'failed' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {payment.status}
+                                </span>
+                              </td>
+                              <td className="p-4 font-mono text-[10px] text-slate-500">
+                                {payment.razorpayPaymentId || payment.razorpayOrderId || '—'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </motion.div>

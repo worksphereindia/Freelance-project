@@ -58,6 +58,11 @@ export default function AuthModal() {
   const [error, setError] = useState('');
   const [acceptPolicies, setAcceptPolicies] = useState(false);
   
+  // Validation Errors
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  
   // Password Visibility
   const [showPassword, setShowPassword] = useState(false);
 
@@ -96,6 +101,42 @@ export default function AuthModal() {
         newDigits[index] = '';
         setOtpDigits(newDigits);
       }
+    }
+  };
+
+  const handleEmailChange = (val) => {
+    setEmail(val);
+    if (!isLogin) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(val)) {
+        setEmailError('Please enter a valid email address.');
+      } else {
+        setEmailError('');
+      }
+    } else {
+      setEmailError('');
+    }
+  };
+
+  const handlePhoneChange = (val) => {
+    setPhoneNumber(val);
+    if (!isLogin) {
+      // Indian mobile numbers must start with 6, 7, 8, or 9 and be exactly 10 digits
+      const phoneRegex = /^[6-9]\d{9}$/;
+      if (val.length > 0 && !/^\d+$/.test(val)) {
+        setPhoneError('Phone number can only contain digits.');
+      } else if (!phoneRegex.test(val)) {
+        setPhoneError('Must be a valid 10-digit Indian number starting with 6-9.');
+      } else {
+        setPhoneError('');
+      }
+    }
+  };
+
+  const handlePasswordChange = (val) => {
+    setPassword(val);
+    if (!isLogin) {
+      setPasswordError(validatePassword(val) || '');
     }
   };
 
@@ -165,16 +206,21 @@ export default function AuthModal() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    if (!isLogin && !acceptPolicies) {
-      setError('You must accept the Privacy Policy and Cookie Consent.');
-      setIsSubmitting(false);
-      return;
-    }
-
     if (!isLogin) {
+      if (emailError || phoneError || passwordError) {
+        setError('Please fix the errors before submitting.');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!acceptPolicies) {
+        setError('You must accept the Privacy Policy and Cookie Consent.');
+        setIsSubmitting(false);
+        return;
+      }
       const pwdError = validatePassword(password);
       if (pwdError) {
-        setError(pwdError);
+        setPasswordError(pwdError);
+        setError('Please fix the password errors.');
         setIsSubmitting(false);
         return;
       }
@@ -525,14 +571,18 @@ export default function AuthModal() {
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Phone Number</label>
-                      <input 
-                        type="tel" 
-                        className="w-full px-3 py-2.5 rounded-xl bg-white/60 border border-slate-200 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm text-slate-900 placeholder-slate-400"
-                        placeholder="10 digit number"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        required={!isLogin}
-                      />
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3 text-slate-500 font-medium text-sm border-r border-slate-200 pr-2">+91</span>
+                        <input 
+                          type="tel" 
+                          className={`w-full pl-14 pr-3 py-2.5 rounded-xl bg-white/60 border ${phoneError ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-400 focus:ring-blue-100'} focus:outline-none focus:ring-2 transition-all text-sm text-slate-900 placeholder-slate-400`}
+                          placeholder="10 digit number"
+                          value={phoneNumber}
+                          onChange={(e) => handlePhoneChange(e.target.value)}
+                          required={!isLogin}
+                        />
+                      </div>
+                      {phoneError && <p className="text-red-500 text-[10px] mt-1 font-medium">{phoneError}</p>}
                     </div>
                   </motion.div>
                 )}
@@ -541,12 +591,13 @@ export default function AuthModal() {
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{isLogin ? 'Email or Name' : 'Email'}</label>
                   <input 
                     type="text" 
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/60 border border-slate-200 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm text-slate-900 placeholder-slate-400"
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white/60 border ${emailError ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-400 focus:ring-blue-100'} focus:outline-none focus:ring-2 transition-all text-sm text-slate-900 placeholder-slate-400`}
                     placeholder={isLogin ? "Enter email or name" : "you@example.com"}
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleEmailChange(e.target.value)}
                     required
                   />
+                  {emailError && <p className="text-red-500 text-[10px] mt-1 font-medium">{emailError}</p>}
                 </div>
                 
                 <div>
@@ -554,10 +605,10 @@ export default function AuthModal() {
                   <div className="relative">
                     <input 
                       type={showPassword ? "text" : "password"} 
-                      className="w-full px-3 py-2.5 rounded-xl bg-white/60 border border-slate-200 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm text-slate-900 placeholder-slate-400 pr-10"
+                      className={`w-full px-3 py-2.5 rounded-xl bg-white/60 border ${passwordError ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-400 focus:ring-blue-100'} focus:outline-none focus:ring-2 transition-all text-sm text-slate-900 placeholder-slate-400 pr-10`}
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => handlePasswordChange(e.target.value)}
                       required
                     />
                     <button 
@@ -568,6 +619,19 @@ export default function AuthModal() {
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
+                  {!isLogin && (
+                    <div className="mt-2 text-[10px] text-slate-500 space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <p className="font-bold text-slate-600 mb-1">Password requirements:</p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        <li className={password.length >= 8 ? 'text-green-600 font-medium transition-colors' : 'transition-colors'}>At least 8 characters</li>
+                        <li className={/[A-Z]/.test(password) ? 'text-green-600 font-medium transition-colors' : 'transition-colors'}>One uppercase letter</li>
+                        <li className={/[a-z]/.test(password) ? 'text-green-600 font-medium transition-colors' : 'transition-colors'}>One lowercase letter</li>
+                        <li className={/[0-9]/.test(password) ? 'text-green-600 font-medium transition-colors' : 'transition-colors'}>One number</li>
+                        <li className={/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'text-green-600 font-medium transition-colors' : 'transition-colors'}>One special character</li>
+                      </ul>
+                    </div>
+                  )}
+                  {passwordError && <p className="text-red-500 text-[10px] mt-1 font-medium">{passwordError}</p>}
                 </div>
                 
                 {!isLogin && (

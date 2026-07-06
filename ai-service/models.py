@@ -21,3 +21,10 @@ class MatchRequest(BaseModel):
 class MatchResponse(BaseModel):
     freelancer_id: str
     score: float
+
+class GenerateProposalRequest(BaseModel):
+    job_title: str
+    job_description: str
+    freelancer_name: str
+    freelancer_skills: List[str]
+

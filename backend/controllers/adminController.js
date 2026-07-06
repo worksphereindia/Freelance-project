@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Job = require('../models/Job');
 const Payment = require('../models/Payment');
+const SubscriptionPayment = require('../models/SubscriptionPayment');
 const Message = require('../models/Message');
 const ContactMessage = require('../models/ContactMessage');
 const Violation = require('../models/Violation');
@@ -44,10 +45,18 @@ exports.getStats = async (req, res) => {
       .populate('job', 'title')
       .sort({ createdAt: -1 });
 
+    const subscriptionPayments = await SubscriptionPayment.find()
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 });
+
     // Financial Metrics
     const fundedPayments = payments.filter(p => p.status === 'escrow_funded' || p.status === 'released');
     const totalEscrowVolume = fundedPayments.reduce((acc, p) => acc + p.amount, 0);
     const platformFees = fundedPayments.reduce((acc, p) => acc + (p.platformFee || 0), 0);
+
+    const totalSubscriptionRevenue = subscriptionPayments
+      .filter(p => p.status === 'completed')
+      .reduce((acc, p) => acc + p.amount, 0);
 
     // Job Status counts
     const jobsStatus = {
@@ -64,9 +73,11 @@ exports.getStats = async (req, res) => {
       paymentCount,
       totalEscrowVolume,
       platformFees,
+      totalSubscriptionRevenue,
       users, 
       jobs,
       payments,
+      subscriptionPayments,
       jobsStatus
     });
   } catch (error) {

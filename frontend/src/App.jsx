@@ -12,6 +12,7 @@ import SubscriptionModal from './components/SubscriptionModal';
 import Footer from './components/Footer';
 import ContactUs from './components/ContactUs';
 import Breadcrumbs from './components/Breadcrumbs';
+import SupportChatWidget from './components/SupportChatWidget';
 const Home = lazy(() => import('./pages/Home'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Chat = lazy(() => import('./pages/Chat'));
@@ -23,6 +24,7 @@ const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
 const JobDetails = lazy(() => import('./pages/JobDetails'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const SubscriptionCheckout = lazy(() => import('./pages/SubscriptionCheckout'));
 
 function AppNav() {
   const { user, logout, openAuth } = useAuth();
@@ -124,7 +126,7 @@ function AppNav() {
                               </span>
                               {user.subscriptionPlan && user.subscriptionPlan !== 'none' && user.subscriptionExpiry && (
                                 <div className="text-[10px] text-slate-500 flex flex-col gap-0.5">
-                                  <span>Expires: {new Date(user.subscriptionExpiry).toLocaleDateString()}</span>
+                                  <span>Expires: {new Date(user.subscriptionExpiry).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
                                   <span className="font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded w-fit">
                                     {Math.max(0, Math.ceil((new Date(user.subscriptionExpiry) - new Date()) / (1000 * 60 * 60 * 24)))} days left
                                   </span>
@@ -386,6 +388,10 @@ function AppRoutes() {
             path="/job/:id" 
             element={<ProtectedRoute><JobDetails /></ProtectedRoute>} 
           />
+          <Route 
+            path="/checkout/subscription" 
+            element={<ProtectedRoute><SubscriptionCheckout /></ProtectedRoute>} 
+          />
 
           {/* Admin Routes */}
           <Route 
@@ -406,6 +412,8 @@ function AppRoutes() {
 function AppContent() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
+  const isChat = location.pathname.startsWith('/chat');
+  const isJob = location.pathname.startsWith('/job');
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
@@ -414,8 +422,9 @@ function AppContent() {
       <div className={`pt-16 flex flex-col min-h-screen ${isAdmin ? 'h-[calc(100vh-64px)] overflow-hidden' : ''}`}>
         {!isAdmin && <Breadcrumbs />}
         <AppRoutes />
-        {!isAdmin && <ContactUs />}
+        {!isAdmin && !isChat && !isJob && <ContactUs />}
         {!isAdmin && <Footer />}
+        <SupportChatWidget />
       </div>
     </div>
   );

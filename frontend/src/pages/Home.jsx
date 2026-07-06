@@ -1,10 +1,12 @@
 import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { ShieldCheck, Zap, Lock, ArrowRight, Briefcase, Calculator, Award, Sparkles, MonitorPlay, FileText, ChevronRight, Video, CheckCircle2, Star, Target, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import heroIllustration from '../assets/hero_illustration_transparent.png';
+import Particles from "react-tsparticles";
+import { loadFull } from "tsparticles";
 
 // Enhanced 3D Canvas Mesh
 function InteractiveMesh() {
@@ -178,6 +180,10 @@ export default function Home() {
   const [jobs, setJobs] = useState([]);
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  const particlesInit = useCallback(async (engine) => {
+    await loadFull(engine);
+  }, []);
 
   const [estimateCategory, setEstimateCategory] = useState('Web Design');
   const [estimateBudget, setEstimateBudget] = useState(40000);
@@ -211,12 +217,60 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-[#f8fafc] text-slate-800 overflow-hidden font-sans">
       
-      {/* 1. Hero Section with 3D Elements */}
-      <section className="relative min-h-screen flex items-center justify-center pt-20 pb-32 px-4 bg-grid-pattern overflow-hidden">
-        {/* Glow behind hero */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-300/30 rounded-full blur-[120px] pointer-events-none"></div>
+      {/* 1. Hero Section with Advanced Particles (Light Mode) */}
+      <section className="relative min-h-screen flex items-center justify-center pt-15 pb-22 px-4 bg-[#f8fafc] overflow-hidden border-b border-slate-200">
         
-        <InteractiveMesh />
+        <Particles
+          id="tsparticles"
+          init={particlesInit}
+          className="absolute inset-0 w-full h-full z-0 pointer-events-auto"
+          options={{
+            fullScreen: { enable: false },
+            background: { color: { value: "transparent" } },
+            fpsLimit: 60,
+            interactivity: {
+              events: {
+                onHover: { enable: true, mode: "grab" },
+                onClick: { enable: true, mode: "push" },
+                resize: true,
+              },
+              modes: {
+                grab: { distance: 140, links: { opacity: 1 } },
+                push: { quantity: 4 },
+              },
+            },
+            particles: {
+              color: { value: "#6366f1" },
+              links: {
+                color: "#8b5cf6",
+                distance: 150,
+                enable: true,
+                opacity: 0.4,
+                width: 1,
+              },
+              collisions: { enable: false },
+              move: {
+                direction: "none",
+                enable: true,
+                outModes: { default: "bounce" },
+                random: false,
+                speed: 1,
+                straight: false,
+              },
+              number: {
+                density: { enable: true, area: 800 },
+                value: 50,
+              },
+              opacity: { value: 0.6 },
+              shape: { type: "circle" },
+              size: { value: { min: 1, max: 3 } },
+            },
+            detectRetina: true,
+          }}
+        />
+
+        {/* Glow behind hero */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-300/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
         
         {/* Floating 3D Orbs/Elements */}
         <div className="absolute top-32 left-20 animate-float">
@@ -233,25 +287,25 @@ export default function Home() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="space-y-8"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel text-sm font-bold text-blue-700 shadow-sm backdrop-blur-xl">
-              <Sparkles size={16} className="text-slate-500" />
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel text-sm font-bold text-blue-700 shadow-sm backdrop-blur-xl relative z-10 border border-blue-200 bg-white/50">
+              <Sparkles size={16} className="text-blue-600" />
               <span>Decentralized Escrow Talent Portal</span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-[1.1]">
+            <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-[1.1] relative z-10">
               Where elite talent <br />
               meets <span className="text-gradient">frictionless trust.</span>
             </h1>
             
-            <p className="text-lg md:text-xl text-slate-600 max-w-xl font-medium leading-relaxed">
+            <p className="text-lg md:text-xl text-slate-600 max-w-xl font-medium leading-relaxed relative z-10 pointer-events-none">
               WorkSphere connects top-tier designers, creators, and marketers. Secured by automated digital contracts and real-time bank escrow vaults.
             </p>
             
-            <div className="flex flex-wrap gap-4 pt-4">
+            <div className="flex flex-wrap gap-4 pt-4 relative z-10">
               <Link to="/dashboard" className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/20 transition-all transform hover:-translate-y-1 flex items-center gap-2 group">
                 Start Hiring <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link to="/dashboard" className="px-8 py-4 glass-panel text-slate-800 rounded-2xl font-bold hover:bg-white/80 transition-all transform hover:-translate-y-1">
+              <Link to="/dashboard" className="px-8 py-4 glass-panel text-slate-800 rounded-2xl font-bold hover:bg-white/80 transition-all transform hover:-translate-y-1 border border-slate-200">
                 Find Freelance Work
               </Link>
             </div>

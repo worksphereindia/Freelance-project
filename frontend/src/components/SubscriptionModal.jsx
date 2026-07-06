@@ -1,86 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, CheckCircle, Loader2 } from 'lucide-react';
-import axios from 'axios';
-import toast from 'react-hot-toast';
+import { X, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function SubscriptionModal({ isOpen, onClose }) {
-  const { user, refreshUser } = useAuth();
-  const [isSubscribing, setIsSubscribing] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   if (!isOpen) return null;
 
-  const handleSubscribe = async (plan) => {
-    setIsSubscribing(true);
-    try {
-      const token = user?.token || sessionStorage.getItem('token');
-      
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/users/subscribe`, { plan }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      const { isMock, order, amount } = res.data;
-
-      if (isMock) {
-        await axios.post(`${import.meta.env.VITE_API_URL}/api/users/verify-subscription`, {
-          razorpay_order_id: order.id,
-          plan
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        toast.success(`Successfully subscribed to ${plan === 'advanced' ? 'Pro' : 'Basic'} plan! (Mock)`);
-        refreshUser();
-        setIsSubscribing(false);
-        onClose();
-        return;
-      }
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'mock',
-        amount: order.amount,
-        currency: "INR",
-        name: "WorkSphere",
-        description: `${plan === 'advanced' ? 'PRO' : 'BASIC'} Plan Subscription`,
-        order_id: order.id,
-        handler: async function (response) {
-          try {
-            await axios.post(`${import.meta.env.VITE_API_URL}/api/users/verify-subscription`, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              plan
-            }, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            toast.success(`Successfully subscribed to ${plan === 'advanced' ? 'Pro' : 'Basic'} plan!`);
-            refreshUser();
-            onClose();
-          } catch (verifyErr) {
-            toast.error(verifyErr.response?.data?.message || "Payment verification failed.");
-          }
-        },
-        prefill: {
-          name: user.name,
-          email: user.email,
-          contact: user.phoneNumber || ""
-        },
-        theme: {
-          color: "#2563eb"
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response) {
-        toast.error(response.error.description || "Payment failed");
-      });
-      rzp.open();
-
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Subscription initialization failed.");
-    } finally {
-      setIsSubscribing(false);
-    }
+  const handleSubscribe = (plan) => {
+    onClose();
+    navigate(`/checkout/subscription?plan=${plan}`);
   };
 
   return (
@@ -121,14 +53,14 @@ export default function SubscriptionModal({ isOpen, onClose }) {
               <div className="mt-auto relative z-10">
                 <button 
                   onClick={() => handleSubscribe('basic')}
-                  disabled={isSubscribing || user?.subscriptionPlan === 'basic'}
-                  className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all border ${
+                  disabled={user?.subscriptionPlan === 'basic'}
+                  className={`w-full py-4 rounded-xl font-bold text-sm transition-all border ${
                     user?.subscriptionPlan === 'basic' 
                       ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
-                      : 'bg-white hover:bg-blue-50 border-blue-200 text-blue-600 shadow-sm'
+                      : 'bg-slate-900 hover:bg-slate-800 text-white shadow-lg hover:shadow-xl'
                   }`}
                 >
-                  {isSubscribing ? <Loader2 size={16} className="animate-spin mx-auto" /> : (user?.subscriptionPlan === 'basic' ? 'Current Plan' : 'Subscribe to Basic')}
+                  {user?.subscriptionPlan === 'basic' ? 'Current Plan' : 'Subscribe to Basic'}
                 </button>
               </div>
             </div>
@@ -156,7 +88,19 @@ export default function SubscriptionModal({ isOpen, onClose }) {
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle size={16} className="text-purple-600 mt-0.5 shrink-0" />
-                    <span className="text-slate-600 font-medium"><span className="text-slate-900 font-bold">Priority</span> Support</span>
+                    <span className="text-slate-600 font-medium"><span className="text-slate-900 font-bold">Priority Live Support</span> & Dispute Resolution</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle size={16} className="text-purple-600 mt-0.5 shrink-0" />
+                    <span className="text-slate-600 font-medium"><span className="text-slate-900 font-bold">Magic AI</span> Proposal Generator</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle size={16} className="text-purple-600 mt-0.5 shrink-0" />
+                    <span className="text-slate-600 font-medium"><span className="text-slate-900 font-bold">Verified Pro Badge</span> & Boosted Search</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle size={16} className="text-purple-600 mt-0.5 shrink-0" />
+                    <span className="text-slate-600 font-medium"><span className="text-slate-900 font-bold">Early Access</span> to Premium Jobs</span>
                   </li>
                 </ul>
               </div>
@@ -164,14 +108,14 @@ export default function SubscriptionModal({ isOpen, onClose }) {
               <div className="mt-auto relative z-10">
                 <button 
                   onClick={() => handleSubscribe('advanced')}
-                  disabled={isSubscribing || user?.subscriptionPlan === 'advanced'}
-                  className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
+                  disabled={user?.subscriptionPlan === 'advanced'}
+                  className={`w-full py-4 rounded-xl font-bold text-sm transition-all ${
                     user?.subscriptionPlan === 'advanced' 
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200' 
-                      : 'bg-purple-600 hover:bg-purple-700 text-white shadow-md'
+                      : 'bg-blue-500 hover:bg-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]'
                   }`}
                 >
-                  {isSubscribing ? <Loader2 size={16} className="animate-spin mx-auto" /> : (user?.subscriptionPlan === 'advanced' ? 'Current Plan' : 'Subscribe to Pro')}
+                  {user?.subscriptionPlan === 'advanced' ? 'Current Plan' : 'Subscribe to Pro'}
                 </button>
               </div>
             </div>
