@@ -207,7 +207,15 @@ export default function AuthModal() {
     setIsSubmitting(true);
     
     if (!isLogin) {
-      if (emailError || phoneError || passwordError) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      let hasError = false;
+
+      if (!emailRegex.test(email)) {
+        setEmailError('Please enter a valid email address.');
+        hasError = true;
+      }
+
+      if (hasError || emailError || phoneError || passwordError) {
         setError('Please fix the errors before submitting.');
         setIsSubmitting(false);
         return;
@@ -234,6 +242,7 @@ export default function AuthModal() {
         localStorage.removeItem('rememberedEmail');
         toast.success('Successfully logged in!');
         closeAuth();
+        navigate('/dashboard');
       } else {
         await axios.post(import.meta.env.VITE_API_URL + '/api/auth/register', { name, email, password, role, phoneNumber });
         toast.success('Registration successful! Enter the OTP sent to your email.');
@@ -273,6 +282,7 @@ export default function AuthModal() {
         login(res.data.token, res.data);
         toast.success('Successfully logged in with Google!');
         closeAuth();
+        navigate('/dashboard');
       }
     } catch (err) {
       console.error(err);
@@ -298,6 +308,7 @@ export default function AuthModal() {
       login(res.data.token, res.data);
       toast.success('Registration complete!');
       closeAuth();
+      navigate('/dashboard');
     } catch (err) {
       if (err.message === 'Network Error') {
         toast.error('Unable to connect to server. Please try again.');
@@ -387,7 +398,7 @@ export default function AuthModal() {
               <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
                 {forgotPasswordStep === 'email' ? (
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Email Address <span className="text-red-500">*</span></label>
                     <input 
                       type="email" 
                       className="w-full px-3 py-2.5 rounded-xl bg-white/60 border border-slate-200 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm text-slate-900 placeholder-slate-400"
@@ -400,7 +411,7 @@ export default function AuthModal() {
                 ) : (
                   <>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">Verification Code (6-Digit OTP)</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">Verification Code (6-Digit OTP) <span className="text-red-500">*</span></label>
                       <div className="flex gap-2 justify-center mb-1" onPaste={handleOtpPaste}>
                         {otpDigits.map((digit, index) => (
                           <input
@@ -421,7 +432,7 @@ export default function AuthModal() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">New Password</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">New Password <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <input 
                           type={showNewPassword ? "text" : "password"} 
@@ -441,7 +452,7 @@ export default function AuthModal() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Confirm New Password</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Confirm New Password <span className="text-red-500">*</span></label>
                       <input 
                         type={showNewPassword ? "text" : "password"} 
                         className="w-full px-3 py-2.5 rounded-xl bg-white/60 border border-slate-200 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm text-slate-900 placeholder-slate-400"
@@ -559,7 +570,7 @@ export default function AuthModal() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Full Name</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Full Name <span className="text-red-500">*</span></label>
                       <input 
                         type="text" 
                         className="w-full px-3 py-2.5 rounded-xl bg-white/60 border border-slate-200 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm text-slate-900 placeholder-slate-400"
@@ -570,7 +581,7 @@ export default function AuthModal() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Phone Number</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Phone Number <span className="text-red-500">*</span></label>
                       <div className="relative flex items-center">
                         <span className="absolute left-3 text-slate-500 font-medium text-sm border-r border-slate-200 pr-2">+91</span>
                         <input 
@@ -588,7 +599,7 @@ export default function AuthModal() {
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{isLogin ? 'Email or Name' : 'Email'}</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{isLogin ? 'Email' : 'Email'} <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     className={`w-full px-3 py-2.5 rounded-xl bg-white/60 border ${emailError ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-400 focus:ring-blue-100'} focus:outline-none focus:ring-2 transition-all text-sm text-slate-900 placeholder-slate-400`}
@@ -601,7 +612,7 @@ export default function AuthModal() {
                 </div>
                 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Password</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Password <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <input 
                       type={showPassword ? "text" : "password"} 

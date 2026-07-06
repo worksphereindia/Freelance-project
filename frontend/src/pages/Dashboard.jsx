@@ -1194,7 +1194,7 @@ export default function Dashboard() {
             
             <form onSubmit={handlePostJobSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Job Title</label>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Job Title <span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
                   required
@@ -1206,7 +1206,7 @@ export default function Dashboard() {
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Project Category</label>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Project Category <span className="text-red-500">*</span></label>
                 <select 
                   value={jobForm.category}
                   onChange={e => setJobForm({...jobForm, category: e.target.value})}
@@ -1223,7 +1223,7 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Project Description</label>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Project Description <span className="text-red-500">*</span></label>
                 <textarea 
                   required
                   minLength={20}
@@ -1236,7 +1236,7 @@ export default function Dashboard() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Budget (₹)</label>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Budget (₹) <span className="text-red-500">*</span></label>
                   <input 
                     type="number" 
                     required
@@ -1247,7 +1247,7 @@ export default function Dashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Skills (comma separated)</label>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Skills (comma separated) <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     required
@@ -1289,7 +1289,7 @@ export default function Dashboard() {
             
             <form onSubmit={handleReviewSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Rating (1-5)</label>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Rating (1-5) <span className="text-red-500">*</span></label>
                 <input 
                   type="number" 
                   min="1" max="5" required
@@ -1300,7 +1300,7 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Feedback</label>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Feedback <span className="text-red-500">*</span></label>
                 <textarea 
                   required
                   value={reviewForm.comment}

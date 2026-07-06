@@ -109,7 +109,7 @@ export default function ContactUs() {
                 
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Your Name</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Your Name <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                         <UserIcon size={18} />
@@ -125,7 +125,7 @@ export default function ContactUs() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Address</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Address <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                         <Mail size={18} />
@@ -142,7 +142,7 @@ export default function ContactUs() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subject</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subject <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     value={subject}
@@ -154,7 +154,7 @@ export default function ContactUs() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Message</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Message <span className="text-red-500">*</span></label>
                   <textarea 
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}

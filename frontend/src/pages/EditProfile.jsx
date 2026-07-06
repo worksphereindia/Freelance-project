@@ -127,7 +127,7 @@ export default function EditProfile() {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Name <span className="text-red-500">*</span></label>
             <input 
               type="text" 
               className="w-full px-4 py-3 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed"
@@ -137,7 +137,7 @@ export default function EditProfile() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Email <span className="text-red-500">*</span></label>
             <input 
               type="email" 
               className="w-full px-4 py-3 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed"
@@ -147,7 +147,7 @@ export default function EditProfile() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Phone Number</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Phone Number <span className="text-red-500">*</span></label>
             <input 
               type="tel" 
               className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"

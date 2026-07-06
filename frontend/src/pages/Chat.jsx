@@ -617,7 +617,7 @@ export default function Chat() {
 
                 <div className="space-y-4 text-left mb-6">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">Proposed Price (₹)</label>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">Proposed Price (₹) <span className="text-red-500">*</span></label>
                     <input
                       type="number"
                       value={counterAmount}
