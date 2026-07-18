@@ -19,6 +19,80 @@ const loadRazorpayScript = () => {
   });
 };
 
+const TermsModal = ({ isOpen, onConfirm, onCancel }) => {
+  const [timeLeft, setTimeLeft] = useState(10); // 10 seconds delay
+
+  useEffect(() => {
+    let timer;
+    if (isOpen) {
+      setTimeLeft(10);
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100"
+      >
+        <div className="p-6 md:p-8 space-y-6">
+          <div className="flex items-center gap-3 text-blue-600">
+            <div className="p-3 bg-blue-50 rounded-2xl">
+              <FileText size={28} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Contract Terms & Conditions</h3>
+          </div>
+          
+          <div className="text-sm text-slate-600 space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+            <p className="font-semibold text-slate-800">Please read carefully before proceeding:</p>
+            <ul className="space-y-3 list-disc pl-5">
+              <li>If you share personal details and get work done outside this platform, we are not responsible for any issues.</li>
+              <li>Maintain 100% trust on this platform for all your communications and transactions.</li>
+              <li>For any errors or problems in the project or payment processing on our platform, we take full responsibility.</li>
+              <li>Your payment will be securely held in escrow and released only upon successful completion.</li>
+              <li>Any disputes will be resolved strictly through our platform's arbitration process.</li>
+            </ul>
+          </div>
+          
+          <div className="pt-2 flex flex-col sm:flex-row gap-3">
+            <button 
+              onClick={onCancel}
+              className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors w-full sm:w-auto"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={onConfirm}
+              disabled={timeLeft > 0}
+              className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {timeLeft > 0 ? (
+                `Please read (${timeLeft}s)`
+              ) : (
+                <>I Agree & Proceed</>
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export default function PaymentPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
@@ -180,12 +254,10 @@ export default function PaymentPage() {
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       
       {/* Confirm Action Popup */}
-      <ConfirmModal 
+      <TermsModal 
         isOpen={showConfirmModal}
         onConfirm={handlePayEscrow}
         onCancel={() => setShowConfirmModal(false)}
-        title="Escrow Payment Confirmation"
-        message="Are you sure continuing to fund the secure escrow for this contract?"
       />
 
       {/* Header */}

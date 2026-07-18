@@ -43,8 +43,7 @@ export default function SubscriptionCheckout() {
           headers: { Authorization: `Bearer ${token}` }
         });
         toast.success(`Successfully subscribed to ${plan === 'advanced' ? 'Pro' : 'Basic'} plan! (Mock)`);
-        refreshUser();
-        navigate('/dashboard');
+        window.location.href = '/';
         return;
       }
 
@@ -66,8 +65,7 @@ export default function SubscriptionCheckout() {
               headers: { Authorization: `Bearer ${token}` }
             });
             toast.success(`Successfully subscribed to ${plan === 'advanced' ? 'Pro' : 'Basic'} plan!`);
-            refreshUser();
-            navigate('/dashboard');
+            window.location.href = '/';
           } catch (verifyErr) {
             toast.error(verifyErr.response?.data?.message || "Payment verification failed.");
             setIsProcessing(false);
