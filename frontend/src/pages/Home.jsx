@@ -5,8 +5,8 @@ import axios from 'axios';
 import { ShieldCheck, Zap, Lock, ArrowRight, Briefcase, Calculator, Award, Sparkles, MonitorPlay, FileText, ChevronRight, Video, CheckCircle2, Star, Target, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import heroIllustration from '../assets/hero_illustration_transparent.png';
-import Particles from "react-tsparticles";
-import { loadFull } from "tsparticles";
+import Particles from "@tsparticles/react";
+import { loadAll } from "@tsparticles/all";
 
 // Enhanced 3D Canvas Mesh
 function InteractiveMesh() {
@@ -182,7 +182,7 @@ export default function Home() {
   const navigate = useNavigate();
   
   const particlesInit = useCallback(async (engine) => {
-    await loadFull(engine);
+    await loadAll(engine);
   }, []);
 
   const [estimateCategory, setEstimateCategory] = useState('Web Design');

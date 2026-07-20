@@ -1289,7 +1289,9 @@ export default function AdminPanel() {
                         <tr className="bg-slate-50/80 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100">
                           <th className="p-4 pl-6">Job Details</th>
                           <th className="p-4">Owner (Client)</th>
+                          <th className="p-4">Freelancer</th>
                           <th className="p-4">Financial Budget</th>
+                          <th className="p-4">Bid Amount</th>
                           <th className="p-4">Platform Status</th>
                           <th className="p-4 text-center">Actions</th>
                         </tr>
@@ -1297,7 +1299,7 @@ export default function AdminPanel() {
                       <tbody className="divide-y divide-slate-100 text-xs">
                         {filteredJobs.length === 0 ? (
                           <tr>
-                            <td colSpan="5" className="text-center p-12 text-slate-400 font-medium bg-white">
+                            <td colSpan="7" className="text-center p-12 text-slate-400 font-medium bg-white">
                               No jobs match your active search or filter criteria.
                             </td>
                           </tr>
@@ -1316,8 +1318,16 @@ export default function AdminPanel() {
                               <td className="p-4 font-semibold text-slate-600">
                                 {j.client?.name || 'Unknown Client'}
                               </td>
+                              <td className="p-4 font-semibold text-slate-600">
+                                {j.paymentStatus === 'escrow_funded' || j.paymentStatus === 'released' 
+                                  ? (j.selectedFreelancer?.name || <span className="text-slate-400 italic">Unknown</span>)
+                                  : <span className="text-slate-400 italic">Pending</span>}
+                              </td>
                               <td className="p-4 font-bold text-slate-800">
                                 ₹{j.budget.toLocaleString('en-IN')}
+                              </td>
+                              <td className="p-4 font-bold text-emerald-600">
+                                {j.acceptedPrice ? `₹${j.acceptedPrice.toLocaleString('en-IN')}` : <span className="text-slate-400 italic">-</span>}
                               </td>
                               <td className="p-4 space-y-1">
                                 {/* State indicators */}
