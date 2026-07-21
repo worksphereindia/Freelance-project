@@ -12,7 +12,6 @@ import SubscriptionModal from './components/SubscriptionModal';
 import Footer from './components/Footer';
 import ContactUs from './components/ContactUs';
 import Breadcrumbs from './components/Breadcrumbs';
-import SupportChatWidget from './components/SupportChatWidget';
 const Home = lazy(() => import('./pages/Home'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Chat = lazy(() => import('./pages/Chat'));
@@ -422,7 +421,6 @@ function AppContent() {
         <AppRoutes />
         {!isAdmin && !isChat && !isJob && <ContactUs />}
         {!isAdmin && <Footer />}
-        <SupportChatWidget />
       </div>
     </div>
   );

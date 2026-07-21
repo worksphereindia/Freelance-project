@@ -1,8 +1,8 @@
-import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView } from 'framer-motion';
+import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { ShieldCheck, Zap, Lock, ArrowRight, Briefcase, Calculator, Award, Sparkles, MonitorPlay, FileText, ChevronRight, Video, CheckCircle2, Star, Target, Globe } from 'lucide-react';
+import { ShieldCheck, Zap, Lock, ArrowRight, Briefcase, Calculator, Award, Sparkles, MonitorPlay, FileText, ChevronRight, Video, CheckCircle2, Star, Target, Globe, ArrowUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import heroIllustration from '../assets/hero_illustration_transparent.png';
 import Particles from "@tsparticles/react";
@@ -173,6 +173,47 @@ function TiltCard({ children, className }) {
         {children}
       </div>
     </motion.div>
+  );
+}
+
+function ScrollToTopButton() {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const toggleVisibility = () => {
+      if (window.scrollY > 300) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener('scroll', toggleVisibility);
+    return () => window.removeEventListener('scroll', toggleVisibility);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          onClick={scrollToTop}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 md:left-auto md:right-6 md:-translate-x-0 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg z-[100] transition-colors"
+          title="Back to Top"
+        >
+          <ArrowUp size={24} />
+        </motion.button>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -609,6 +650,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <ScrollToTopButton />
     </div>
   );
 }

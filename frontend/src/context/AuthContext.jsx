@@ -66,9 +66,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-    const decoded = decodeToken(newToken);
-    setUser({ ...userData, ...decoded });
+    
+    // Set loading to true so ProtectedRoute shows a spinner
+    // instead of crashing on an incomplete user object or redirecting prematurely.
+    setLoading(true);
     setToken(newToken);
+    // useEffect will now trigger and call fetchUser(newToken)
   };
 
   const logout = () => {
