@@ -279,6 +279,7 @@ exports.verifyPayment = async (req, res) => {
 
       const job = await Job.findById(payment.job);
       job.paymentStatus = 'escrow_funded';
+      job.status = 'in-progress'; // Status becomes in-progress ONLY after payment
       await job.save();
 
       const client = await User.findById(req.user.id);
@@ -301,6 +302,7 @@ exports.verifyPayment = async (req, res) => {
 
       const job = await Job.findById(payment.job);
       job.paymentStatus = 'escrow_funded';
+      job.status = 'in-progress'; // Status becomes in-progress ONLY after payment
       await job.save();
 
       const client = await User.findById(req.user.id);

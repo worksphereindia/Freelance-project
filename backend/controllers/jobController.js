@@ -267,12 +267,12 @@ exports.acceptBid = async (req, res) => {
 
     // Update Job
     const job = await Job.findById(bid.job._id);
-    job.status = 'in-progress';
+    // Do NOT set to in-progress yet; wait for payment
     job.selectedFreelancer = bid.freelancer;
     job.acceptedPrice = bid.amount; // Save agreed bid amount
     await job.save();
 
-    res.json({ message: 'Bid accepted, job in progress', job, bid });
+    res.json({ message: 'Bid accepted, pending payment', job, bid });
 
     // Emit real-time update
     emitJobUpdate(req, [job.client, job.selectedFreelancer]);

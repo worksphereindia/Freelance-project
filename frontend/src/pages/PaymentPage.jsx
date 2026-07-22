@@ -47,7 +47,7 @@ const TermsModal = ({ isOpen, onConfirm, onCancel }) => {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100"
+        className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto custom-scrollbar border border-slate-100"
       >
         <div className="p-6 md:p-8 space-y-6">
           <div className="flex items-center gap-3 text-blue-600">
