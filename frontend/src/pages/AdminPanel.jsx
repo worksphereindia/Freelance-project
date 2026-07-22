@@ -8,6 +8,8 @@ import {
   LayoutDashboard, 
   Receipt, 
   CheckCircle, 
+  Star,
+  Flag,
   XCircle, 
   Search, 
   ShieldCheck, 
@@ -1153,7 +1155,7 @@ export default function AdminPanel() {
                                     )}
                                     {u.isFlagged && (
                                       <span className="bg-red-100 text-red-700 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase flex items-center gap-1" title="Auto-flagged for repeated policy violations">
-                                        🚩 Flagged
+                                        <Flag size={10} className="inline mr-1 text-red-500 fill-red-500" /> Flagged
                                       </span>
                                     )}
                                     {u.violationCount > 0 && (
@@ -1165,10 +1167,14 @@ export default function AdminPanel() {
                                   <div className="flex flex-wrap items-center gap-2 mt-0.5">
                                     <p className="text-[10px] text-slate-400 capitalize">
                                       {u.role}
-                                      {u.role === 'freelancer' && ` (⭐ Admin: ${u.adminRating || 'Unrated'} | Client: ${u.rating || 'Unrated'})`}
+                                      {u.role === 'freelancer' && (
+                                        <span className="inline-flex items-center gap-1">
+                                          (<Star size={10} className="text-amber-500 fill-amber-500" /> Admin: {u.adminRating || 'Unrated'} | Client: {u.rating || 'Unrated'})
+                                        </span>
+                                      )}
                                     </p>
                                     {u.subscriptionPlan && u.subscriptionPlan !== 'none' && (
-                                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${u.subscriptionPlan === 'advanced' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700'}`}>
+                                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${u.subscriptionPlan === 'pro' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700'}`}>
                                         {u.subscriptionPlan} Plan
                                       </span>
                                     )}

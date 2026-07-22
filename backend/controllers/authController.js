@@ -170,16 +170,17 @@ exports.googleLogin = async (req, res) => {
 
 exports.completeProfile = async (req, res) => {
   try {
-    const { skills, portfolioUrl, phoneNumber, upiId, bankAccount, location, experience } = req.body;
+    const { skills, phoneNumber, upiId, bankAccount, location, experience, portfolioUrl, companyName } = req.body;
     const user = await User.findById(req.user.id);
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.skills = skills || user.skills;
-    user.portfolioUrl = portfolioUrl;
     user.phoneNumber = phoneNumber;
     if (location) user.location = location;
     if (experience) user.experience = experience;
+    if (portfolioUrl) user.portfolio = [portfolioUrl];
+    if (companyName && user.role === 'client') user.companyName = companyName;
     if (upiId) user.upiId = encrypt(upiId);
     if (bankAccount) user.bankAccount = encrypt(bankAccount);
     
@@ -251,8 +252,8 @@ exports.updateProfile = async (req, res) => {
       if (companyName) user.companyName = companyName;
     } else if (user.role === 'freelancer') {
       if (skills) user.skills = Array.isArray(skills) ? skills : skills.split(',').map(s => s.trim()).filter(Boolean);
-      if (portfolioUrl) user.portfolioUrl = portfolioUrl;
       if (experience) user.experience = experience;
+      if (portfolioUrl) user.portfolio = [portfolioUrl];
     }
     
     await user.save();
@@ -275,6 +276,13 @@ exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    // Auto-migrate legacy 'advanced' plan to 'pro'
+    if (user.subscriptionPlan === 'advanced') {
+      user.subscriptionPlan = 'pro';
+      await user.save();
+    }
+    
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });

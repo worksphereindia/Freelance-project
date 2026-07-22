@@ -44,6 +44,17 @@ app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Server Error:', err.message);
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ message: 'File is too large. Maximum size is 5MB.' });
+  }
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
 // Setup Socket.io for Real-time chat

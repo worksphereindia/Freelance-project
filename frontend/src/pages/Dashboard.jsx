@@ -5,11 +5,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, MessageSquare, CheckSquare, CreditCard, Landmark, Compass, Briefcase, FileText, Sparkles, BrainCircuit, Star, Wallet, CheckCircle, History, Wrench, DollarSign, X, ChevronRight } from 'lucide-react';
+import { Loader2, MessageSquare, CheckSquare, CreditCard, Landmark, Compass, Briefcase, FileText, Sparkles, BrainCircuit, Star, Wallet, CheckCircle, History, Wrench, DollarSign, X, ChevronRight, Gem } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import Avatar from '../components/Avatar';
 import TalentDirectory from '../components/TalentDirectory';
+import SkillsInput from '../components/SkillsInput';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -77,6 +78,10 @@ export default function Dashboard() {
   // AI Matching States
   const [aiMatches, setAiMatches] = useState({});
   const [loadingAi, setLoadingAi] = useState(null);
+  
+  // AI Recommended Jobs (Freelancer)
+  const [aiRecommendedJobs, setAiRecommendedJobs] = useState([]);
+  const [loadingAiRecommendedJobs, setLoadingAiRecommendedJobs] = useState(false);
 
   // Review State
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -134,6 +139,9 @@ export default function Dashboard() {
     if (user?.role === 'freelancer' && activeTab === 'earnings') {
       fetchEarnings();
     }
+    if (user?.role === 'freelancer' && activeTab === 'ai-recommendations') {
+      fetchAiRecommendedJobs();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user]);
 
@@ -172,6 +180,21 @@ export default function Dashboard() {
       console.error("Failed to fetch my workspace jobs", err);
     } finally {
       setLoadingMyJobs(false);
+    }
+  };
+
+  const fetchAiRecommendedJobs = async () => {
+    try {
+      setLoadingAiRecommendedJobs(true);
+      const token = user?.token || sessionStorage.getItem('token');
+      const res = await axios.get(import.meta.env.VITE_API_URL + '/api/jobs/ai-recommended-jobs', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAiRecommendedJobs(res.data);
+    } catch (err) {
+      console.error("Failed to fetch AI recommended jobs", err);
+    } finally {
+      setLoadingAiRecommendedJobs(false);
     }
   };
 
@@ -604,6 +627,19 @@ export default function Dashboard() {
               Explore
             </button>
             <button
+              onClick={() => {
+                if (user?.subscriptionPlan !== 'pro') {
+                  setActiveTab('ai-upsell');
+                } else {
+                  setActiveTab('ai-recommendations');
+                }
+              }}
+              className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${['ai-recommendations', 'ai-upsell'].includes(activeTab) ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md shadow-purple-500/20' : 'text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100'}`}
+            >
+              <BrainCircuit size={16} className={`transition-transform duration-500 ${['ai-recommendations', 'ai-upsell'].includes(activeTab) ? 'animate-pulse' : 'group-hover:scale-110'}`} />
+              AI Match <Gem size={14} className="ml-0.5 fill-current opacity-80" />
+            </button>
+            <button
               onClick={() => setActiveTab('invited')}
               className={`group flex-1 min-w-[120px] py-3 px-4 font-semibold text-sm rounded-xl flex items-center justify-center gap-2.5 transition-all whitespace-nowrap ${activeTab === 'invited' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
             >
@@ -753,6 +789,89 @@ export default function Dashboard() {
         </div>
       ) : activeTab === 'talents' ? (
         <TalentDirectory />
+      ) : activeTab === 'ai-upsell' ? (
+        <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-3xl p-10 text-center shadow-xl border border-indigo-800/50 flex flex-col items-center justify-center min-h-[400px]">
+          <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-6 shadow-inner backdrop-blur-sm">
+            <BrainCircuit size={40} className="text-purple-300" />
+          </div>
+          <h2 className="text-3xl font-black text-white mb-3 tracking-tight flex items-center justify-center gap-2">Unlock AI Job Recommendations <Gem size={28} className="text-purple-300 fill-purple-300/30" /></h2>
+          <p className="text-indigo-200 mb-8 max-w-lg text-sm leading-relaxed">
+            Stop manually searching for jobs. Upgrade to Pro and let our advanced AI match you with the perfect opportunities based on your unique skills, portfolio, and experience.
+          </p>
+          <button 
+            onClick={() => navigate('/subscription?plan=pro')}
+            className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] transition-all transform hover:-translate-y-1"
+          >
+            Upgrade to Pro
+          </button>
+        </div>
+      ) : activeTab === 'ai-recommendations' ? (
+        (() => {
+          if (!user?.skills || user.skills.length === 0) {
+            return (
+              <div className="text-center py-20 text-slate-500 bg-white border border-dashed border-slate-200 rounded-3xl p-10 flex flex-col items-center">
+                <Wrench size={40} className="text-slate-300 mb-4" />
+                <h3 className="text-xl font-bold text-slate-700 mb-2">No skills matches</h3>
+                <p className="text-sm max-w-sm mb-6">You haven't added any skills to your profile yet. Add skills to help our AI find the perfect job matches for you!</p>
+                <Link to="/edit-profile" className="px-6 py-2 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors">
+                  Update Profile
+                </Link>
+              </div>
+            );
+          }
+          return loadingAiRecommendedJobs ? (
+            <div className="flex flex-col items-center justify-center py-20 text-purple-600">
+              <BrainCircuit size={40} className="animate-pulse mb-4" />
+              <p className="font-bold text-sm tracking-wider uppercase">AI is analyzing your profile...</p>
+            </div>
+          ) : aiRecommendedJobs.length === 0 ? (
+            <div className="text-center py-20 text-slate-500 bg-white border border-dashed rounded-3xl p-10">
+              No AI recommendations found at the moment. Try updating your skills!
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {aiRecommendedJobs.map(({ job, score }, index) => (
+                <motion.div
+                  key={job._id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-white p-6 rounded-2xl shadow-[0_0_15px_rgba(168,85,247,0.1)] border-2 border-purple-100 flex flex-col justify-between h-full group hover:border-purple-300 transition-all relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 bg-gradient-to-bl from-purple-500 to-indigo-500 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-bl-xl shadow-sm flex items-center gap-1">
+                    <Sparkles size={10} />
+                    {Math.round(score * 100)}% Match
+                  </div>
+                  <div className="mt-4">
+                    <div className="flex items-start mb-2">
+                      <span className="text-lg font-black text-slate-900">₹{job.budget?.toLocaleString('en-IN')}</span>
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-slate-800 mb-2 group-hover:text-purple-600 transition-colors pr-10">{job.title}</h3>
+                    <p className="text-sm text-slate-500 mb-5 line-clamp-3">{job.description}</p>
+                    
+                    <div className="flex flex-wrap gap-1.5 mb-6">
+                      {job.skills && job.skills.map(skill => (
+                        <span key={skill} className="px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-bold border border-purple-100">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-purple-50 flex flex-col gap-2 mt-auto">
+                    <button 
+                      onClick={() => navigate(`/job/${job._id}`)}
+                      className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors shadow-md shadow-purple-500/20"
+                    >
+                      View Job Details
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          );
+        })()
       ) : activeTab === 'discover' || activeTab === 'invited' ? (
         // Explore/Discover/Invited Tab
         (() => {
@@ -800,7 +919,7 @@ export default function Dashboard() {
                     </span>
                     {user?.role === 'freelancer' && job.invitedFreelancers?.includes(user?.id || user?._id) && (
                       <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 ml-2 shadow-sm border border-purple-200 animate-pulse">
-                        ⭐ INVITED
+                        <Star size={12} className="inline mr-1 text-amber-500 fill-amber-500" /> INVITED
                       </span>
                     )}
                     <span className="text-lg font-bold text-slate-900 ml-auto">₹{job.budget?.toLocaleString('en-IN')}</span>
@@ -1093,7 +1212,7 @@ export default function Dashboard() {
                             }}
                             className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
                           >
-                            ⭐ Leave a Review
+                            <Star size={12} className="inline mr-1 text-amber-500 fill-amber-500" /> Leave a Review
                           </button>
                           <button
                             onClick={() => {
@@ -1144,7 +1263,7 @@ export default function Dashboard() {
                                 <Avatar name={match.freelancer.name} src={match.freelancer.profilePicture} size={36} className="border-slate-100 text-slate-600 group-hover:ring-2 ring-blue-500 transition-all" />
                                 <div>
                                   <div className="font-bold text-sm text-slate-800 group-hover:text-blue-600 transition-colors">{match.freelancer.name}</div>
-                                  <div className="text-[10px] font-semibold text-slate-400">Rating: {match.freelancer.rating} ⭐</div>
+                                  <div className="text-[10px] font-semibold text-slate-400 flex items-center gap-0.5">Rating: {match.freelancer.rating} <Star size={10} className="text-amber-500 fill-amber-500" /></div>
                                 </div>
                               </div>
                               <div className="text-right flex flex-col items-end">
@@ -1247,15 +1366,13 @@ export default function Dashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Skills (comma separated) <span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
-                    required
-                    value={jobForm.skills}
-                    onChange={e => setJobForm({...jobForm, skills: e.target.value})}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" 
-                    placeholder="React, Express, JWT" 
-                  />
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Skills (press Enter to add) <span className="text-red-500">*</span></label>
+                  <div className="text-sm">
+                    <SkillsInput 
+                      skills={jobForm.skills}
+                      onChange={newSkills => setJobForm({...jobForm, skills: newSkills})}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1281,7 +1398,7 @@ export default function Dashboard() {
           >
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-yellow-50">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">⭐ Leave a Review</h2>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Star size={20} className="text-amber-500 fill-amber-500" /> Leave a Review</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Rate the freelancer's work quality.</p>
               </div>
               <button onClick={() => setShowReviewModal(false)} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>

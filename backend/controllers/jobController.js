@@ -410,6 +410,72 @@ exports.getAiMatches = async (req, res) => {
   }
 };
 
+exports.getAiRecommendedJobs = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'freelancer') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (user.subscriptionPlan !== 'pro') {
+      return res.status(403).json({ message: 'Pro subscription required for AI Job Search.' });
+    }
+
+    const openJobs = await Job.find({ status: 'open' }).select('_id title description skills category budget');
+    if (!openJobs || openJobs.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const payload = {
+      freelancer: {
+        id: user._id.toString(),
+        name: user.name || '',
+        skills: user.skills || [],
+        rating: user.rating || 5
+      },
+      jobs: openJobs.map(j => ({
+        id: j._id.toString(),
+        title: j.title || '',
+        description: j.description || '',
+        skills_required: j.skills || []
+      }))
+    };
+
+    let matches = [];
+    try {
+      const aiResponse = await axios.post('http://127.0.0.1:8000/match-jobs', payload, { timeout: 3000 });
+      matches = aiResponse.data;
+    } catch (aiError) {
+      console.warn('AI Matcher unavailable, using fallback keyword matching.', aiError.message);
+      matches = openJobs.map(j => {
+        let score = 0;
+        if (j.skills && j.skills.length > 0) {
+          j.skills.forEach(skill => {
+            if (user.skills && user.skills.some(s => s.toLowerCase() === skill.toLowerCase())) {
+              score += 1;
+            }
+          });
+          score = score / j.skills.length;
+        }
+        return { job_id: j._id.toString(), score };
+      }).filter(m => m.score > 0).sort((a, b) => b.score - a.score);
+    }
+
+    const enrichedMatches = matches.map(match => {
+      const jobData = openJobs.find(j => j._id.toString() === match.job_id);
+      return {
+        job: jobData,
+        score: match.score
+      };
+    });
+
+    res.status(200).json(enrichedMatches);
+  } catch (error) {
+    console.error('AI Recommend Job Search Error:', error.message);
+    res.status(500).json({ message: 'Failed to generate AI recommended jobs' });
+  }
+};
+
 exports.updateBid = async (req, res) => {
   try {
     const { bidId } = req.params;

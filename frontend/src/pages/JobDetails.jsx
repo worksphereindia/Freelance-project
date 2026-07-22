@@ -270,11 +270,20 @@ export default function JobDetails() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
                         key={bid._id} 
-                        className="bg-white border border-blue-100 rounded-xl p-4 shadow-sm hover:shadow hover:border-blue-300 transition-all text-left"
+                        className={`border rounded-xl p-4 shadow-sm hover:shadow transition-all text-left relative overflow-hidden ${
+                          bid.freelancer?.subscriptionPlan === 'pro' 
+                            ? 'bg-amber-50/30 border-amber-300 hover:border-amber-400' 
+                            : 'bg-white border-blue-100 hover:border-blue-300'
+                        }`}
                       >
-                        <div className="flex gap-3">
+                        {bid.freelancer?.subscriptionPlan === 'pro' && (
+                          <div className="absolute top-0 right-0 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-bl-lg font-bold text-[9px] uppercase shadow-sm flex items-center gap-1 border-b border-l border-amber-200">
+                            👑 Featured
+                          </div>
+                        )}
+                        <div className="flex gap-3 relative z-10">
                           <Avatar name={bid.freelancer?.name} src={bid.freelancer?.profilePicture} size={36} className="bg-blue-500 text-white font-bold" />
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 pr-16">
                             <h4 className="font-bold text-sm text-slate-800 truncate">{bid.freelancer?.name}</h4>
                             {bid.freelancer?.skills?.length > 0 && (
                               <p className="text-[10px] text-slate-500 truncate">{bid.freelancer.skills.slice(0, 3).join(', ')}</p>

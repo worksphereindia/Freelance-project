@@ -328,7 +328,7 @@ export default function PaymentPage() {
                 </div>
                 <div className="text-xs text-slate-500 space-y-1">
                   <div className="flex items-center gap-1">
-                    <span>⭐ Rating:</span>
+                    <span className="flex items-center gap-1"><Star size={14} className="text-amber-500 fill-amber-500" /> Rating:</span>
                     <span className="font-semibold text-slate-700">{job.selectedFreelancer?.rating || '4.8'}/5.0</span>
                   </div>
                 </div>

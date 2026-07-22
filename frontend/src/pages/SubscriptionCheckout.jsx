@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { Loader2, ArrowLeft, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Loader2, ArrowLeft, ShieldCheck, CheckCircle2, Gem } from 'lucide-react';
 
 export default function SubscriptionCheckout() {
   const { search } = useLocation();
@@ -12,16 +12,16 @@ export default function SubscriptionCheckout() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const queryParams = new URLSearchParams(search);
-  const plan = queryParams.get('plan'); // 'basic' or 'advanced'
+  const plan = queryParams.get('plan'); // 'basic' or 'pro'
 
   useEffect(() => {
-    if (!plan || !['basic', 'advanced'].includes(plan)) {
+    if (!plan || !['basic', 'pro'].includes(plan)) {
       navigate('/dashboard');
     }
   }, [plan, navigate]);
 
-  const basePrice = plan === 'advanced' ? 150 : 50;
-  const tax = basePrice * 0.02; // 2% GST
+  const basePrice = plan === 'pro' ? 150 : 50;
+  const tax = basePrice * 0.05; // 5% GST
   const total = basePrice + tax;
 
   const handlePayment = async () => {
@@ -42,7 +42,7 @@ export default function SubscriptionCheckout() {
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        toast.success(`Successfully subscribed to ${plan === 'advanced' ? 'Pro' : 'Basic'} plan! (Mock)`);
+        toast.success(`Successfully subscribed to ${plan === 'pro' ? 'Pro' : 'Basic'} plan! (Mock)`);
         window.location.href = '/';
         return;
       }
@@ -52,7 +52,7 @@ export default function SubscriptionCheckout() {
         amount: order.amount,
         currency: "INR",
         name: "WorkSphere",
-        description: `${plan === 'advanced' ? 'PRO' : 'BASIC'} Plan Subscription`,
+        description: `${plan === 'pro' ? 'PRO' : 'BASIC'} Plan Subscription`,
         order_id: order.id,
         handler: async function (response) {
           try {
@@ -64,7 +64,7 @@ export default function SubscriptionCheckout() {
             }, {
               headers: { Authorization: `Bearer ${token}` }
             });
-            toast.success(`Successfully subscribed to ${plan === 'advanced' ? 'Pro' : 'Basic'} plan!`);
+            toast.success(`Successfully subscribed to ${plan === 'pro' ? 'Pro' : 'Basic'} plan!`);
             window.location.href = '/';
           } catch (verifyErr) {
             toast.error(verifyErr.response?.data?.message || "Payment verification failed.");
@@ -151,12 +151,13 @@ export default function SubscriptionCheckout() {
         <div className="w-full md:w-80 bg-slate-900 text-white p-8 md:p-10 flex flex-col">
           <h3 className="text-xl font-bold mb-6 text-white/90">What you get</h3>
           <ul className="space-y-4 mb-auto">
-            {plan === 'advanced' ? (
+            {plan === 'pro' ? (
               <>
                 <li className="flex items-start"><CheckCircle2 size={20} className="text-blue-400 mr-3 shrink-0" /><span className="text-sm font-medium text-slate-300">Unlimited Bids</span></li>
                 <li className="flex items-start"><CheckCircle2 size={20} className="text-blue-400 mr-3 shrink-0" /><span className="text-sm font-medium text-slate-300">Priority Support</span></li>
                 <li className="flex items-start"><CheckCircle2 size={20} className="text-blue-400 mr-3 shrink-0" /><span className="text-sm font-medium text-slate-300">Featured Profile Badge</span></li>
                 <li className="flex items-start"><CheckCircle2 size={20} className="text-blue-400 mr-3 shrink-0" /><span className="text-sm font-medium text-slate-300">Access to Premium Jobs</span></li>
+                <li className="flex items-start"><CheckCircle2 size={20} className="text-blue-400 mr-3 shrink-0" /><span className="text-sm font-medium text-slate-300 flex items-center gap-1">AI Recommend Job Search <Gem size={14} className="text-blue-400 fill-blue-400/20" /></span></li>
               </>
             ) : (
               <>

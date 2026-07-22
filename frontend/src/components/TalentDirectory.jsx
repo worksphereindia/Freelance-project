@@ -18,7 +18,8 @@ import {
   Image,
   Database,
   ExternalLink,
-  Laptop
+  Laptop,
+  AlertTriangle
 } from 'lucide-react';
 import Avatar from './Avatar';
 import { useAuth } from '../context/AuthContext';
@@ -39,6 +40,7 @@ export default function TalentDirectory() {
   // Popup Modals States
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
   const [portfolioTarget, setPortfolioTarget] = useState(null);
+  const [showPortfolioWarningFor, setShowPortfolioWarningFor] = useState(null);
   const [selectedFile, setSelectedFile] = useState('dashboard_design.fig');
 
   // Fetch freelancers list
@@ -219,12 +221,24 @@ CREATE TABLE escrow_payments (
               key={freelancer._id}
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all flex flex-col p-6 relative overflow-hidden group"
+              className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all flex flex-col relative overflow-hidden group"
             >
-              {/* Top Details Card */}
-              <div className="flex items-start gap-4 mb-4">
-                <div className="relative flex-shrink-0">
-                  <Avatar name={freelancer.name} src={freelancer.profilePicture} size={60} className="ring-4 ring-blue-50 shadow-sm" />
+              {/* Cover Image Banner (Pro) */}
+              {freelancer.subscriptionPlan === 'pro' && freelancer.coverImage ? (
+                <div className="h-24 w-full relative">
+                  <img src={freelancer.coverImage} alt="Cover" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                </div>
+              ) : (
+                <div className="h-16 w-full bg-gradient-to-r from-slate-50 to-slate-100"></div>
+              )}
+
+              {/* Main Content Area */}
+              <div className="p-6 pt-0 flex flex-col flex-grow">
+                {/* Top Details Card */}
+                <div className="flex items-start gap-4 mb-4 relative z-10">
+                <div className="relative flex-shrink-0 -mt-6">
+                  <Avatar name={freelancer.name} src={freelancer.profilePicture} size={64} className="ring-4 ring-white bg-white shadow-sm" />
                   {freelancer.isFreelancerApproved && (
                     <div className="absolute bottom-0 right-0 bg-white rounded-full p-0.5 border border-slate-100 shadow-sm">
                       <CheckCircle size={14} className="text-blue-500 fill-blue-50" />
@@ -232,7 +246,7 @@ CREATE TABLE escrow_payments (
                   )}
                 </div>
 
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 pt-2">
                   <h3 className="font-bold text-slate-800 text-md tracking-tight flex items-center gap-1 group-hover:text-blue-600 transition-colors">
                     {freelancer.name}
                   </h3>
@@ -292,6 +306,7 @@ CREATE TABLE escrow_payments (
                   <MessageSquare size={13} />
                 </button>
               </div>
+            </div>
             </motion.div>
           ))}
         </div>
@@ -390,8 +405,7 @@ CREATE TABLE escrow_payments (
                   </div>
                   <button 
                     onClick={() => {
-                      setPortfolioTarget(selectedFreelancer);
-                      setSelectedFile('dashboard_design.fig');
+                      setShowPortfolioWarningFor(selectedFreelancer);
                     }}
                     className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
                   >
@@ -595,6 +609,57 @@ CREATE TABLE escrow_payments (
                   </div>
                 )}
               </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* 3. Speed Bump Warning Modal */}
+      {createPortal(
+        <AnimatePresence>
+          {showPortfolioWarningFor && (
+            <div 
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[600] p-4 backdrop-blur-sm"
+              onClick={() => setShowPortfolioWarningFor(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col"
+              >
+                <div className="bg-amber-50 p-6 border-b border-amber-100 flex flex-col items-center text-center">
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+                    <AlertTriangle size={32} className="text-amber-500" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800">You are leaving WorkSphere</h3>
+                </div>
+                <div className="p-6 text-center">
+                  <p className="text-slate-600 font-medium mb-6 leading-relaxed">
+                    To stay protected by our Escrow Payment system, never communicate or pay outside of the platform. If a freelancer asks you to contact them directly, please report them immediately.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button 
+                      onClick={() => setShowPortfolioWarningFor(null)}
+                      className="flex-1 py-3 border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                    >
+                      Go Back
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setPortfolioTarget(showPortfolioWarningFor);
+                        setSelectedFile('dashboard_design.fig');
+                        setShowPortfolioWarningFor(null);
+                      }}
+                      className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all"
+                    >
+                      Continue to Portfolio
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             </div>
           )}

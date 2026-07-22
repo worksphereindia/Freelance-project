@@ -77,3 +77,50 @@ def match_freelancers(job: Job, freelancers: List[Freelancer]) -> List[Dict[str,
     # Sort by score descending
     results = sorted(results, key=lambda x: x["score"], reverse=True)
     return results[:5]  # Return top 5 matches
+
+def match_jobs(freelancer: Freelancer, jobs: List[Job]) -> List[Dict[str, float]]:
+    if not jobs:
+        return []
+
+    # 1. Normalize freelancer skills
+    f_skills_norm = {normalize_skill(s) for s in freelancer.skills if s}
+    
+    # 2. Build TF-IDF search terms (Freelancer Skills vs Job title + Description + Skills)
+    freelancer_doc = " ".join(freelancer.skills)
+    job_docs = [f"{j.title} {j.description} " + " ".join(j.skills_required) for j in jobs]
+    
+    all_docs = [freelancer_doc] + job_docs
+    
+    # Compute TF-IDF Cosine Similarity
+    cosine_sim = [0.0] * len(jobs)
+    try:
+        vectorizer = TfidfVectorizer(stop_words='english')
+        tfidf_matrix = vectorizer.fit_transform(all_docs)
+        cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:]).flatten()
+    except Exception as e:
+        print(f"Warning: TF-IDF failed ({e}), relying on Jaccard overlap.")
+
+    results = []
+    for i, j in enumerate(jobs):
+        # A. Jaccard Overlap Score (Skill matching)
+        job_skills_norm = {normalize_skill(s) for s in j.skills_required if s}
+        
+        jaccard_score = 0.0
+        if job_skills_norm:
+            intersection = f_skills_norm.intersection(job_skills_norm)
+            jaccard_score = len(intersection) / len(job_skills_norm)
+            
+        # B. Cosine similarity score
+        cosine_score = float(cosine_sim[i]) if i < len(cosine_sim) else 0.0
+        
+        # C. Combined matching score
+        final_score = (jaccard_score * 0.6) + (cosine_score * 0.4)
+
+        results.append({
+            "job_id": j.id,
+            "score": round(float(final_score), 4)
+        })
+        
+    # Sort by score descending
+    results = sorted(results, key=lambda x: x["score"], reverse=True)
+    return results[:10]  # Return top 10 matches

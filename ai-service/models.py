@@ -22,6 +22,14 @@ class MatchResponse(BaseModel):
     freelancer_id: str
     score: float
 
+class MatchJobsRequest(BaseModel):
+    freelancer: Freelancer
+    jobs: List[Job]
+
+class MatchJobsResponse(BaseModel):
+    job_id: str
+    score: float
+
 class GenerateProposalRequest(BaseModel):
     job_title: str
     job_description: str

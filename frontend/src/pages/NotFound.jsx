@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Home, Undo2 } from 'lucide-react';
 
 export default function NotFound() {
   return (
@@ -76,7 +77,7 @@ export default function NotFound() {
                 whileTap={{ scale: 0.95 }}
                 className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-600/20 transition-colors w-full sm:w-auto flex items-center justify-center gap-2"
               >
-                🏠 Return Home
+                <Home size={20} className="mr-1" /> Return Home
               </motion.button>
             </Link>
             
@@ -84,7 +85,7 @@ export default function NotFound() {
               onClick={() => window.history.back()}
               className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-2xl border border-slate-200 transition-colors w-full sm:w-auto flex items-center justify-center gap-2"
             >
-              ↩️ Go Back
+              <Undo2 size={20} className="mr-1" /> Go Back
             </button>
           </div>
         </motion.div>

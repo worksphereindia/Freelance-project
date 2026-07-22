@@ -3,14 +3,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SkillsInput from '../components/SkillsInput';
 
 export default function CompleteProfile() {
   const [formData, setFormData] = useState({
     phoneNumber: '',
     companyName: '',
-    skills: '',
+    skills: [],
     portfolioUrl: '',
     experience: '',
     upiId: '',
@@ -82,7 +83,7 @@ export default function CompleteProfile() {
         return;
       }
 
-      if (!formData.skills.trim()) {
+      if (!formData.skills || formData.skills.length === 0) {
         toast.error('Please enter at least one skill.');
         return;
       }
@@ -91,6 +92,7 @@ export default function CompleteProfile() {
         toast.error('Please enter your portfolio or GitHub URL.');
         return;
       }
+      
       
       if (!formData.experience.trim()) {
         toast.error('Please enter your years of professional experience.');
@@ -105,8 +107,7 @@ export default function CompleteProfile() {
 
     setLoading(true);
     try {
-      const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(Boolean);
-      const payload = { ...formData, skills: skillsArray, companyName: formData.companyName };
+      const payload = { ...formData, companyName: formData.companyName };
 
       const res = await axios.put(
         import.meta.env.VITE_API_URL + '/api/auth/complete-profile',
@@ -184,6 +185,10 @@ export default function CompleteProfile() {
                     value={formData.portfolioUrl}
                     onChange={(e) => setFormData({ ...formData, portfolioUrl: e.target.value })}
                   />
+                  <div className="mt-2 flex items-start gap-2 text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-100">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <p><strong>Warning:</strong> Using your portfolio to share direct contact details or request off-platform payments will result in an immediate and permanent account ban.</p>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2 flex justify-between items-center">
@@ -192,9 +197,9 @@ export default function CompleteProfile() {
                       type="button" 
                       onClick={fetchLocation} 
                       disabled={fetchingLocation}
-                      className="text-xs text-blue-600 font-bold hover:underline disabled:text-slate-400"
+                      className="text-xs text-blue-600 font-bold hover:underline disabled:text-slate-400 flex items-center gap-1"
                     >
-                      {fetchingLocation ? 'Detecting...' : 'Auto-Detect 📍'}
+                      {fetchingLocation ? 'Detecting...' : <>Auto-Detect <MapPin size={14} /></>}
                     </button>
                   </label>
                   <input
@@ -214,14 +219,10 @@ export default function CompleteProfile() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Skills <span className="text-red-500">*</span>
-                  <span className="font-normal text-slate-400 ml-1">(comma separated)</span>
                 </label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  placeholder="React, Node.js, Python, UI/UX"
-                  value={formData.skills}
-                  onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
+                <SkillsInput
+                  skills={formData.skills}
+                  onChange={(newSkills) => setFormData({ ...formData, skills: newSkills })}
                 />
               </div>
 

@@ -1,5 +1,5 @@
 const express = require('express');
-const { createJob, getJobs, getMyJobs, getJobMessages, placeBid, acceptBid, getJobBids, deliverJob, getJobById, approveJob, getAiMatches, updateBid, disputeJob, postCounterOffer, acceptCounterOffer, rejectCounterOffer, inviteFreelancer, getJobAssets, uploadJobAsset, deleteJobAsset, createRehireRequest, respondRehireRequest, acceptRehireCounter, rejectRehireCounter, generateProposal } = require('../controllers/jobController');
+const { createJob, getJobs, getMyJobs, getJobMessages, placeBid, acceptBid, getJobBids, deliverJob, getJobById, approveJob, getAiMatches, getAiRecommendedJobs, updateBid, disputeJob, postCounterOffer, acceptCounterOffer, rejectCounterOffer, inviteFreelancer, getJobAssets, uploadJobAsset, deleteJobAsset, createRehireRequest, respondRehireRequest, acceptRehireCounter, rejectRehireCounter, generateProposal } = require('../controllers/jobController');
 const { protect, authorize } = require('../middleware/auth');
 const { apiLimiter } = require('../middleware/rateLimiter');
 const { validate, jobSchema } = require('../utils/validators');
@@ -27,6 +27,7 @@ router.route('/')
   .post(protect, authorize('client'), validate(jobSchema), createJob);
 
 router.get('/my-jobs', protect, getMyJobs);
+router.get('/ai-recommended-jobs', protect, authorize('freelancer'), getAiRecommendedJobs);
 router.post('/generate-proposal', protect, authorize('freelancer'), generateProposal);
 router.get('/job/:jobId', protect, getJobById); // Use /job/:jobId to prevent conflict with other routes
 router.get('/:jobId/messages', protect, getJobMessages);

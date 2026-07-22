@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from models import MatchRequest, MatchResponse, GenerateProposalRequest
-from matcher import match_freelancers
+from models import MatchRequest, MatchResponse, GenerateProposalRequest, MatchJobsRequest, MatchJobsResponse
+from matcher import match_freelancers, match_jobs
 from typing import List
 
 app = FastAPI(title="Freelancer AI Matcher")
@@ -8,6 +8,11 @@ app = FastAPI(title="Freelancer AI Matcher")
 @app.post("/match", response_model=List[MatchResponse])
 async def match(request: MatchRequest):
     results = match_freelancers(request.job, request.freelancers)
+    return results
+
+@app.post("/match-jobs", response_model=List[MatchJobsResponse])
+async def match_jobs_endpoint(request: MatchJobsRequest):
+    results = match_jobs(request.freelancer, request.jobs)
     return results
 
 @app.get("/")

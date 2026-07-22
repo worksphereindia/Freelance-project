@@ -46,7 +46,7 @@ router.get('/freelancers', protect, async (req, res) => {
 router.post('/subscribe', protect, async (req, res) => {
   try {
     const { plan } = req.body;
-    if (!['basic', 'advanced'].includes(plan)) {
+    if (!['basic', 'pro'].includes(plan)) {
       return res.status(400).json({ message: 'Invalid subscription plan.' });
     }
 
@@ -56,7 +56,7 @@ router.post('/subscribe', protect, async (req, res) => {
       return res.status(403).json({ message: 'Only freelancers can subscribe.' });
     }
 
-    const basePrice = plan === 'advanced' ? 150 : 50;
+    const basePrice = plan === 'pro' ? 150 : 50;
     const taxAmount = basePrice * 0.02; // 2% GST
     const totalAmount = basePrice + taxAmount;
 
@@ -108,7 +108,7 @@ router.post('/verify-subscription', protect, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan } = req.body;
     
-    if (!['basic', 'advanced'].includes(plan)) {
+    if (!['basic', 'pro'].includes(plan)) {
       return res.status(400).json({ message: 'Invalid subscription plan.' });
     }
 
@@ -128,7 +128,7 @@ router.post('/verify-subscription', protect, async (req, res) => {
 
     // Send professional email receipt
     try {
-      const basePrice = subPayment ? subPayment.basePrice : (plan === 'advanced' ? 150 : 50);
+      const basePrice = subPayment ? subPayment.basePrice : (plan === 'pro' ? 150 : 50);
       const tax = subPayment ? subPayment.taxAmount : (basePrice * 0.02);
       const total = subPayment ? subPayment.amount : (basePrice + tax);
 
@@ -199,6 +199,32 @@ router.post('/profile-picture', protect, upload.single('profilePicture'), async 
     res.json({ message: 'Profile picture updated successfully', user });
   } catch (error) {
     res.status(500).json({ message: error.message || 'Failed to upload profile picture.' });
+  }
+});
+
+
+// POST /api/users/cover-image
+router.post('/cover-image', protect, upload.single('coverImage'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Please upload an image file.' });
+    }
+
+    // Convert the memory buffer to a base64 data URL
+    const b64 = Buffer.from(req.file.buffer).toString('base64');
+    const imageUrl = `data:${req.file.mimetype};base64,${b64}`;
+
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.coverImage = imageUrl;
+    await user.save();
+
+    res.json({ message: 'Cover image updated successfully', user });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Failed to upload cover image.' });
   }
 });
 

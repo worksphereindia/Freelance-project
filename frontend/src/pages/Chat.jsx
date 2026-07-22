@@ -7,6 +7,7 @@ import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
+import { Star, PenLine, ShieldAlert } from 'lucide-react';
 import { storage } from '../firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { containsPersonalInfo } from '../utils/personalInfo';
@@ -696,7 +697,7 @@ export default function Chat() {
                     >
                       <h3 className="font-semibold text-slate-800 truncate">{job.title}</h3>
                       <p className="text-xs text-emerald-600 font-semibold mt-1 truncate flex items-center gap-1">
-                        ⭐ {job.status.toUpperCase()}
+                        <Star size={12} className="inline mr-1 text-amber-500 fill-amber-500" /> {job.status.toUpperCase()}
                       </p>
                       <p className="text-xs text-slate-500 mt-1 truncate">{job.subtitle}</p>
                     </div>
@@ -756,7 +757,7 @@ export default function Chat() {
                   onClick={handleProposeCounterClick}
                   className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold rounded-xl border border-blue-200 transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  ✏️ Propose Counter-Offer
+                  <PenLine size={16} className="inline mr-1" /> Propose Counter-Offer
                 </button>
               )}
               {!selectedJob.isSupport && (
@@ -947,7 +948,7 @@ export default function Chat() {
               </span>
               {!selectedJob.isSupport && (
                 <span className="bg-amber-50 text-amber-700 text-[11px] px-4 py-1.5 rounded-full font-medium flex items-center shadow-sm border border-amber-100 text-center">
-                  🛡️ Sharing phone numbers, emails, UPI, or social handles is blocked and monitored
+                  <ShieldAlert size={14} className="inline mr-1 text-amber-500" /> Sharing phone numbers, emails, UPI, or social handles is blocked and monitored
                 </span>
               )}
             </div>

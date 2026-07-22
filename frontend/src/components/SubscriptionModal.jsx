@@ -67,7 +67,7 @@ export default function SubscriptionModal({ isOpen, onClose }) {
 
             {/* Pro Plan */}
             <div className="bg-white rounded-2xl p-6 border-2 border-purple-500 relative overflow-hidden flex flex-col shadow-lg shadow-purple-500/10">
-              {user?.subscriptionPlan === 'advanced' && (
+              {user?.subscriptionPlan === 'pro' && (
                 <div className="absolute top-0 right-0 bg-purple-600 text-white text-[10px] uppercase font-bold px-3 py-1 rounded-bl-lg flex items-center gap-1">
                   Active
                 </div>
@@ -107,15 +107,15 @@ export default function SubscriptionModal({ isOpen, onClose }) {
               
               <div className="mt-auto relative z-10">
                 <button 
-                  onClick={() => handleSubscribe('advanced')}
-                  disabled={user?.subscriptionPlan === 'advanced'}
+                  onClick={() => handleSubscribe('pro')}
+                  disabled={user?.subscriptionPlan === 'pro'}
                   className={`w-full py-4 rounded-xl font-bold text-sm transition-all ${
-                    user?.subscriptionPlan === 'advanced' 
+                    user?.subscriptionPlan === 'pro' 
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200' 
                       : 'bg-blue-500 hover:bg-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]'
                   }`}
                 >
-                  {user?.subscriptionPlan === 'advanced' ? 'Current Plan' : 'Subscribe to Pro'}
+                  {user?.subscriptionPlan === 'pro' ? 'Current Plan' : 'Subscribe to Pro'}
                 </button>
               </div>
             </div>

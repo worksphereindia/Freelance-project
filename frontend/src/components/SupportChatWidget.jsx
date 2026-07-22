@@ -15,8 +15,8 @@ export default function SupportChatWidget() {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef(null);
 
-  // Only render for advanced freelancers
-  if (user?.role !== 'freelancer' || user?.subscriptionPlan !== 'advanced') {
+  // Only render for pro freelancers
+  if (user?.role !== 'freelancer' || user?.subscriptionPlan !== 'pro') {
     return null;
   }
 

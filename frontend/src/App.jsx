@@ -83,11 +83,11 @@ function AppNav() {
                 <button 
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition-colors relative group"
-                  title={user.role === 'freelancer' ? `Plan: ${user.subscriptionPlan === 'advanced' ? 'PRO' : user.subscriptionPlan === 'basic' ? 'BASIC' : 'FREE'}` : ''}
+                  title={user.role === 'freelancer' ? `Plan: ${user.subscriptionPlan === 'pro' ? 'PRO' : user.subscriptionPlan === 'basic' ? 'BASIC' : 'FREE'}` : ''}
                 >
                   <div className="relative">
                     <Avatar name={user.name} src={user.profilePicture} size={32} />
-                    {user.role === 'freelancer' && user.subscriptionPlan === 'advanced' && (
+                    {user.role === 'freelancer' && user.subscriptionPlan === 'pro' && (
                       <div className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full p-0.5 shadow-sm border border-white">
                         <Crown size={10} className="text-white fill-white" />
                       </div>
@@ -116,12 +116,12 @@ function AppNav() {
                           {user.role === 'freelancer' && (
                             <div className="mt-1">
                               <span className={`inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded items-center gap-1 mb-1 ${
-                                user.subscriptionPlan === 'advanced' ? 'bg-amber-100 text-amber-700' : 
+                                user.subscriptionPlan === 'pro' ? 'bg-amber-100 text-amber-700' : 
                                 user.subscriptionPlan === 'basic' ? 'bg-slate-200 text-slate-700' : 'bg-red-50 text-red-600'
                               }`}>
-                                {user.subscriptionPlan === 'advanced' && <Crown size={10} className="fill-amber-700" />}
+                                {user.subscriptionPlan === 'pro' && <Crown size={10} className="fill-amber-700" />}
                                 {user.subscriptionPlan === 'basic' && <Star size={10} className="fill-slate-700" />}
-                                {user.subscriptionPlan === 'advanced' ? 'PRO PLAN' : user.subscriptionPlan === 'basic' ? 'BASIC PLAN' : 'FREE'}
+                                {user.subscriptionPlan === 'pro' ? 'PRO PLAN' : user.subscriptionPlan === 'basic' ? 'BASIC PLAN' : 'FREE'}
                               </span>
                               {user.subscriptionPlan && user.subscriptionPlan !== 'none' && user.subscriptionExpiry && (
                                 <div className="text-[10px] text-slate-500 flex flex-col gap-0.5">
@@ -223,7 +223,7 @@ function AppNav() {
                 <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm shrink-0">
                   <div className="relative shrink-0">
                     <Avatar name={user.name} src={user.profilePicture} size={48} />
-                    {user.role === 'freelancer' && user.subscriptionPlan === 'advanced' && (
+                    {user.role === 'freelancer' && user.subscriptionPlan === 'pro' && (
                       <div className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full p-1 shadow-sm border-2 border-white">
                         <Crown size={12} className="text-white fill-white" />
                       </div>
@@ -240,10 +240,10 @@ function AppNav() {
                       <p className="text-xs text-slate-500 capitalize truncate">{user.role}</p>
                       {user.role === 'freelancer' && (
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
-                          user.subscriptionPlan === 'advanced' ? 'bg-amber-100 text-amber-700' : 
+                          user.subscriptionPlan === 'pro' ? 'bg-amber-100 text-amber-700' : 
                           user.subscriptionPlan === 'basic' ? 'bg-slate-200 text-slate-700' : 'bg-red-50 text-red-600'
                         }`}>
-                          {user.subscriptionPlan === 'advanced' ? 'PRO' : user.subscriptionPlan === 'basic' ? 'BASIC' : 'FREE'}
+                          {user.subscriptionPlan === 'pro' ? 'PRO' : user.subscriptionPlan === 'basic' ? 'BASIC' : 'FREE'}
                         </span>
                       )}
                     </div>

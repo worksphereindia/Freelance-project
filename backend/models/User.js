@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
       enum: ['email', 'google']
     },
     profilePicture: { type: String },
+    coverImage: { type: String },
     role: { type: String, enum: ['client', 'freelancer', 'admin'], required: true },
     phoneNumber: { type: String },
     
@@ -43,7 +44,7 @@ const userSchema = new mongoose.Schema(
     isFreelancerApproved: { type: Boolean, default: false },
     
     // Subscriptions
-    subscriptionPlan: { type: String, enum: ['none', 'basic', 'advanced'], default: 'none' },
+    subscriptionPlan: { type: String, enum: ['none', 'basic', 'pro'], default: 'none' },
     subscriptionExpiry: { type: Date },
     bidsThisMonth: { type: Number, default: 0 }
   },
