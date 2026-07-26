@@ -448,10 +448,9 @@ export default function AdminPanel() {
       )}
 
       {/* Sidebar Section */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white text-slate-600 flex flex-col justify-between p-6 border-r border-slate-200/80 transition-transform duration-300 transform md:translate-x-0 md:static md:h-[calc(100vh-64px)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex-shrink-0`}>
-        <div>
-          {/* Logo Brand */}
-          <div className="flex items-center gap-3 mb-10 px-2">
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white text-slate-600 flex flex-col p-6 border-r border-slate-200/80 transition-transform duration-300 transform md:translate-x-0 md:static md:h-[calc(100vh-64px)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex-shrink-0`}>
+        {/* Logo Brand */}
+        <div className="flex items-center gap-3 mb-8 px-2 flex-shrink-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/25">
               W
             </div>
@@ -459,10 +458,10 @@ export default function AdminPanel() {
               <span className="font-extrabold text-slate-800 text-lg tracking-tight">WorkSphere</span>
               <span className="block text-[10px] text-blue-600 font-bold uppercase tracking-wider">Admin Engine</span>
             </div>
-          </div>
+        </div>
 
-          {/* Navigation Links */}
-          <nav className="space-y-1">
+        {/* Navigation Links */}
+        <nav className="space-y-1 overflow-y-auto flex-1 pr-2 -mr-2 custom-scrollbar">
             <button
               onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${activeTab === 'overview' ? 'bg-blue-50 text-blue-600 border border-blue-100/50 shadow-sm' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500'}`}
@@ -568,11 +567,10 @@ export default function AdminPanel() {
                 </span>
               )}
             </button>
-          </nav>
-        </div>
+        </nav>
 
         {/* Sidebar Footer */}
-        <div className="pt-6 border-t border-slate-100 px-2 flex items-center gap-3">
+        <div className="pt-6 mt-4 border-t border-slate-100 px-2 flex items-center gap-3 flex-shrink-0">
           <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
             AD
           </div>
