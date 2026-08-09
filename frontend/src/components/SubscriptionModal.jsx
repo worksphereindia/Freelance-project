@@ -15,6 +15,8 @@ export default function SubscriptionModal({ isOpen, onClose }) {
     navigate(`/checkout/subscription?plan=${plan}`);
   };
 
+  const hasSubscription = user?.subscriptionPlan && user.subscriptionPlan !== 'none';
+
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
       <motion.div 
@@ -53,14 +55,14 @@ export default function SubscriptionModal({ isOpen, onClose }) {
               <div className="mt-auto relative z-10">
                 <button 
                   onClick={() => handleSubscribe('basic')}
-                  disabled={user?.subscriptionPlan === 'basic'}
+                  disabled={hasSubscription}
                   className={`w-full py-4 rounded-xl font-bold text-sm transition-all border ${
-                    user?.subscriptionPlan === 'basic' 
+                    hasSubscription 
                       ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
                       : 'bg-slate-900 hover:bg-slate-800 text-white shadow-lg hover:shadow-xl'
                   }`}
                 >
-                  {user?.subscriptionPlan === 'basic' ? 'Current Plan' : 'Subscribe to Basic'}
+                  {user?.subscriptionPlan === 'basic' ? 'Current Plan' : (hasSubscription ? 'Active Plan Exists' : 'Subscribe to Basic')}
                 </button>
               </div>
             </div>
@@ -108,14 +110,14 @@ export default function SubscriptionModal({ isOpen, onClose }) {
               <div className="mt-auto relative z-10">
                 <button 
                   onClick={() => handleSubscribe('pro')}
-                  disabled={user?.subscriptionPlan === 'pro'}
+                  disabled={hasSubscription}
                   className={`w-full py-4 rounded-xl font-bold text-sm transition-all ${
-                    user?.subscriptionPlan === 'pro' 
+                    hasSubscription 
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200' 
                       : 'bg-blue-500 hover:bg-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]'
                   }`}
                 >
-                  {user?.subscriptionPlan === 'pro' ? 'Current Plan' : 'Subscribe to Pro'}
+                  {user?.subscriptionPlan === 'pro' ? 'Current Plan' : (hasSubscription ? 'Active Plan Exists' : 'Subscribe to Pro')}
                 </button>
               </div>
             </div>

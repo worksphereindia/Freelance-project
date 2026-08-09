@@ -402,7 +402,6 @@ export default function Home() {
                   <div className="mt-8 flex justify-between items-center text-sm font-semibold text-slate-400 group-hover:text-blue-600 transition-colors">
                     <span className="block group-hover:hidden">{cat.shortText}</span>
                     <span className="hidden group-hover:block transition-all">{cat.hoverText}</span>
-                    <ChevronRight size={18} className="transform group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </motion.div>

@@ -153,7 +153,10 @@ export default function CompleteProfile() {
                 className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 placeholder="10 digits e.g. 9876543210"
                 value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  if (val.length <= 10) setFormData({ ...formData, phoneNumber: val });
+                }}
               />
             </div>
             
@@ -231,13 +234,14 @@ export default function CompleteProfile() {
                   Professional Experience <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  max="50"
+                  type="text"
                   className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   placeholder="Years of experience (e.g. 3)"
                   value={formData.experience}
-                  onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    if (val.length <= 2) setFormData({ ...formData, experience: val });
+                  }}
                 />
               </div>
 

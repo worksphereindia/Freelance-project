@@ -11,7 +11,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import Avatar from '../components/Avatar';
 import TalentDirectory from '../components/TalentDirectory';
 import SkillsInput from '../components/SkillsInput';
-
+import SubscriptionModal from '../components/SubscriptionModal';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
@@ -107,6 +107,7 @@ export default function Dashboard() {
 
   // Subscription
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -799,10 +800,10 @@ export default function Dashboard() {
             Stop manually searching for jobs. Upgrade to Pro and let our advanced AI match you with the perfect opportunities based on your unique skills, portfolio, and experience.
           </p>
           <button 
-            onClick={() => navigate('/subscription?plan=pro')}
+            onClick={() => setShowSubscriptionModal(true)}
             className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] transition-all transform hover:-translate-y-1"
           >
-            Upgrade to Pro
+            View Upgrade Plans
           </button>
         </div>
       ) : activeTab === 'ai-recommendations' ? (
@@ -1700,6 +1701,7 @@ export default function Dashboard() {
         onConfirm={() => confirmAction.onConfirm(confirmAction.inputValue)}
         onCancel={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
       />
+      <SubscriptionModal isOpen={showSubscriptionModal} onClose={() => setShowSubscriptionModal(false)} />
     </div>
   );
 }

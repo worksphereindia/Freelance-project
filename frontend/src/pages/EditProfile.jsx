@@ -116,6 +116,13 @@ export default function EditProfile() {
     setError('');
     setSuccess('');
     try {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(formData.phoneNumber.trim())) {
+        toast.error('Please enter exactly 10 digits for the phone number.');
+        setLoading(false);
+        return;
+      }
+      
       const token = sessionStorage.getItem('token');
       let updatedUser = user;
 
@@ -241,7 +248,10 @@ export default function EditProfile() {
               type="tel" 
               className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={formData.phoneNumber}
-              onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                if (val.length <= 10) setFormData({ ...formData, phoneNumber: val });
+              }}
             />
           </div>
           
@@ -282,10 +292,13 @@ export default function EditProfile() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Experience (Years)</label>
                 <input 
-                  type="number" 
+                  type="text" 
                   className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.experience}
-                  onChange={(e) => setFormData({...formData, experience: e.target.value})}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    if (val.length <= 2) setFormData({...formData, experience: val});
+                  }}
                 />
               </div>
               <div>
