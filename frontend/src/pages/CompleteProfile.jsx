@@ -177,23 +177,23 @@ export default function CompleteProfile() {
             
             {user?.role !== 'client' && (
               <>
-                <div>
+                <div className="relative group">
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Portfolio URL <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="url"
-                    className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="peer w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     placeholder="https://github.com/yourname"
                     value={formData.portfolioUrl}
                     onChange={(e) => setFormData({ ...formData, portfolioUrl: e.target.value })}
                   />
-                  <div className="mt-2 flex items-start gap-2 text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-100">
+                  <div className="absolute left-0 top-full mt-2 w-full z-10 opacity-0 invisible peer-focus:opacity-100 peer-focus:visible transition-all duration-200 flex items-start gap-2 text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 shadow-lg">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                     <p><strong>Warning:</strong> Using your portfolio to share direct contact details or request off-platform payments will result in an immediate and permanent account ban.</p>
                   </div>
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-2 flex justify-between items-center">
                     <span>Location <span className="text-red-500">*</span></span>
                     <button 
