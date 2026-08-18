@@ -380,7 +380,8 @@ exports.getAiMatches = async (req, res) => {
 
     let matches = [];
     try {
-      const aiResponse = await axios.post('http://127.0.0.1:8000/match', payload, { timeout: 3000 });
+      const aiUrl = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
+      const aiResponse = await axios.post(`${aiUrl}/match`, payload, { timeout: 3000 });
       matches = aiResponse.data;
     } catch (aiError) {
       console.warn('AI Matcher unavailable, using fallback keyword matching.');
@@ -443,7 +444,8 @@ exports.getAiRecommendedJobs = async (req, res) => {
 
     let matches = [];
     try {
-      const aiResponse = await axios.post('http://127.0.0.1:8000/match-jobs', payload, { timeout: 3000 });
+      const aiUrl = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
+      const aiResponse = await axios.post(`${aiUrl}/match-jobs`, payload, { timeout: 3000 });
       matches = aiResponse.data;
     } catch (aiError) {
       console.warn('AI Matcher unavailable, using fallback keyword matching.', aiError.message);
