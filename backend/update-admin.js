@@ -4,8 +4,8 @@ const bcrypt = require('bcrypt');
 const User = require('./models/User');
 
 // --- UPDATE THESE DETAILS ---
-const NEW_ADMIN_EMAIL = 'newadmin@example.com';
-const NEW_ADMIN_PASSWORD = 'newSecurePassword123!';
+const NEW_ADMIN_EMAIL = 'admin@worksphere';
+const NEW_ADMIN_PASSWORD = 'admin@worksphere26';
 const NEW_ADMIN_NAME = 'Super Admin';
 // ----------------------------
 
